@@ -1,0 +1,4 @@
+project_id = "skiicalwfmtjmoblalrq"
+
+[functions.send-release-decision]
+verify_jwt = true
