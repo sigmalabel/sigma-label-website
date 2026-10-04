@@ -1,9 +1,20 @@
 let spotifyAccessToken = '';
 let spotifyAccessTokenExpiresAt = 0;
 
+function cleanEnvVal(val, prefix) {
+  let str = String(val || '').trim();
+  if (prefix && str.toUpperCase().startsWith(prefix.toUpperCase() + '=')) {
+    str = str.slice(prefix.length + 1).trim();
+  }
+  if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+    str = str.slice(1, -1).trim();
+  }
+  return str;
+}
+
 async function getSpotifyToken() {
-  const clientId = process.env.SPOTIFY_CLIENT_ID;
-  const clientSecret = process.env.SPOTIFY_CLIENT_SECRET;
+  const clientId = cleanEnvVal(process.env.SPOTIFY_CLIENT_ID, 'SPOTIFY_CLIENT_ID');
+  const clientSecret = cleanEnvVal(process.env.SPOTIFY_CLIENT_SECRET, 'SPOTIFY_CLIENT_SECRET');
   if (!clientId || !clientSecret) return null;
   if (spotifyAccessToken && Date.now() < spotifyAccessTokenExpiresAt) {
     return spotifyAccessToken;
@@ -18,7 +29,8 @@ async function getSpotifyToken() {
     body: 'grant_type=client_credentials'
   });
   if (!response.ok) {
-    throw new Error('Spotify authorization failed');
+    const errorBody = await response.text().catch(() => '');
+    throw new Error(`Spotify authorization failed (${response.status}): ${errorBody}`);
   }
   const payload = await response.json();
   spotifyAccessToken = payload.access_token;
@@ -27,10 +39,12 @@ async function getSpotifyToken() {
 }
 
 export default async function handler(req, res) {
+  // Set CORS headers for all requests (GET, OPTIONS, errors)
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
   if (req.method === 'OPTIONS') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
     return res.status(204).end();
   }
 
@@ -43,11 +57,15 @@ export default async function handler(req, res) {
   try {
     token = await getSpotifyToken();
   } catch (err) {
-    return res.status(502).json({ code: 'spotify_auth_error', results: [] });
+    return res.status(502).json({ code: 'spotify_auth_error', message: err.message, results: [] });
   }
 
   if (!token) {
-    return res.status(503).json({ code: 'spotify_unconfigured', results: [] });
+    return res.status(503).json({
+      code: 'spotify_unconfigured',
+      message: 'SPOTIFY_CLIENT_ID or SPOTIFY_CLIENT_SECRET is missing or not loaded.',
+      results: []
+    });
   }
 
   try {
@@ -58,7 +76,8 @@ export default async function handler(req, res) {
     });
 
     if (!response.ok) {
-      return res.status(502).json({ code: 'spotify_search_failed', results: [] });
+      const errorText = await response.text().catch(() => '');
+      return res.status(502).json({ code: 'spotify_search_failed', message: errorText, results: [] });
     }
 
     const payload = await response.json();
@@ -75,6 +94,6 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     return res.status(200).json({ results });
   } catch (err) {
-    return res.status(502).json({ code: 'spotify_search_failed', results: [] });
+    return res.status(502).json({ code: 'spotify_search_failed', message: err.message, results: [] });
   }
 }
