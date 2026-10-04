@@ -1285,6 +1285,12 @@
       font-weight: 500;
       line-height: 1.2;
     }
+    .form-group .platform-label-row {
+      margin-bottom: 7px;
+    }
+    .platform-field .platform-label-row {
+      margin-bottom: 0;
+    }
     .platform-label-row span,
     .platform-label-row label.field-title {
       margin-bottom: 0 !important;
@@ -1869,7 +1875,12 @@
               <div class="form-group"><label class="field-title" for="artist_name_0">Artist name *</label><input type="text" id="artist_name_0" name="artist_name_0" placeholder="e.g. DJ Sigma" required /></div>
               <div class="form-group"><label class="field-title" for="legal_name_0">Legal name *</label><input type="text" id="legal_name_0" name="legal_name_0" placeholder="Full legal name" required /></div>
             </div>
-            <div class="form-group"><label class="field-title" for="artist_email_0">Artist email *</label><input type="email" id="artist_email_0" name="artist_email_0" placeholder="artist@example.com" required /></div>
+            <div class="form-group" data-platform="email">
+              <div class="platform-label-row">
+                <label class="field-title" for="artist_email_0">Artist email *</label>
+              </div>
+              <input type="email" id="artist_email_0" name="artist_email_0" placeholder="artist@example.com" required />
+            </div>
             <div class="link-grid">
               <div class="platform-field form-group" data-platform="spotify">
                 <div class="platform-label-row">
@@ -2625,8 +2636,113 @@
       field._closeArtistSearch = close;
     }
 
+    function formatLegalName(str) {
+      if (!str || typeof str !== "string") return "";
+      return str
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase()
+        .replace(/(?:^|[\s\-'’/])\p{L}/gu, (c) => c.toUpperCase());
+    }
+
+    function handleLegalNameInput(input) {
+      if (!input) return;
+      const val = input.value;
+      if (!val) return;
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const formatted = val.toLowerCase().replace(/(?:^|[\s\-'’/])\p{L}/gu, (c) => c.toUpperCase());
+      if (formatted !== val) {
+        input.value = formatted;
+        try { input.setSelectionRange(start, end); } catch {}
+      }
+    }
+
+    function handleLegalNameBlur(input) {
+      if (!input) return;
+      input.value = formatLegalName(input.value);
+      validateLegalNameField(input);
+    }
+
+    function isValidLegalName(str) {
+      if (!str || typeof str !== "string") return false;
+      const parts = str.trim().split(/\s+/).filter(Boolean);
+      if (parts.length < 2) return false;
+      return parts.every((part) => part.length >= 2 && /\p{L}/u.test(part));
+    }
+
+    function validateLegalNameField(input) {
+      const val = input.value.trim();
+      if (!val) {
+        input.setCustomValidity("");
+        return;
+      }
+      if (!isValidLegalName(val)) {
+        input.setCustomValidity('Please enter a full legal name (First and Last name, e.g. "Daniel Malakhov").');
+      } else {
+        input.setCustomValidity("");
+      }
+    }
+
+    function validateDuplicateEmails() {
+      const artists = collectArtists();
+      const emailMap = new Map();
+      for (const artist of artists) {
+        const email = (artist.email || "").trim().toLowerCase();
+        if (!email) continue;
+        if (!emailMap.has(email)) emailMap.set(email, []);
+        emailMap.get(email).push(artist);
+      }
+
+      document.querySelectorAll("#artistsContainer input[name^='artist_email_']").forEach((input) => {
+        input.setCustomValidity("");
+      });
+
+      for (const [email, list] of emailMap.entries()) {
+        if (list.length > 1) {
+          list.forEach((artist, idx) => {
+            if (idx > 0 && !artist.is_alt_account) {
+              const block = document.querySelectorAll("#artistsContainer .artist-block")[artist.index - 1];
+              const input = block?.querySelector("input[name^='artist_email_']");
+              if (input) {
+                input.setCustomValidity(`Artist #${artist.index} has the same email as another artist. Enable "That's my alt account" if this is your alternate alias, or use a unique email.`);
+              }
+            }
+          });
+        }
+      }
+    }
+
     function bindArtistControls(artistBlock) {
       artistBlock.querySelectorAll(".platform-field").forEach(bindArtistSearch);
+
+      // Legal name formatting & validation
+      artistBlock.querySelectorAll("input[name^='legal_name_']").forEach((legalInput) => {
+        legalInput.addEventListener("input", () => handleLegalNameInput(legalInput));
+        legalInput.addEventListener("blur", () => handleLegalNameBlur(legalInput));
+        legalInput.addEventListener("change", () => handleLegalNameBlur(legalInput));
+      });
+
+      // Alt account switch
+      artistBlock.querySelectorAll("input[data-alt-toggle]").forEach((altToggle) => {
+        altToggle.addEventListener("change", () => {
+          altToggle.setAttribute("aria-checked", String(altToggle.checked));
+          const emailInput = artistBlock.querySelector("input[name^='artist_email_']");
+          if (altToggle.checked && emailInput) {
+            const primaryEmail = document.getElementById("artist_email_0")?.value?.trim();
+            if (primaryEmail && !emailInput.value) {
+              emailInput.value = primaryEmail;
+            }
+          }
+          validateDuplicateEmails();
+        });
+      });
+
+      // Email inputs duplicate validation
+      artistBlock.querySelectorAll("input[name^='artist_email_']").forEach((emailInput) => {
+        emailInput.addEventListener("input", validateDuplicateEmails);
+        emailInput.addEventListener("blur", validateDuplicateEmails);
+      });
 
       artistBlock.querySelectorAll("[data-platform-toggle]").forEach((toggle) => {
         toggle.addEventListener("change", () => {
@@ -2667,7 +2783,24 @@
           <div class="form-group"><label class="field-title" for="artist_name_${index}">Artist name *</label><input type="text" id="artist_name_${index}" name="artist_name_${index}" placeholder="e.g. DJ Sigma" required /></div>
           <div class="form-group"><label class="field-title" for="legal_name_${index}">Legal name *</label><input type="text" id="legal_name_${index}" name="legal_name_${index}" placeholder="Full legal name" required /></div>
         </div>
-        <div class="form-group"><label class="field-title" for="artist_email_${index}">Artist email *</label><input type="email" id="artist_email_${index}" name="artist_email_${index}" placeholder="artist@example.com" required /></div>
+        <div class="form-group" data-platform="email">
+          <div class="platform-label-row">
+            <label class="field-title" for="artist_email_${index}">Artist email *</label>
+            <label class="availability-switch" for="alt_account_${index}_switch">
+              <input 
+                type="checkbox" 
+                id="alt_account_${index}_switch" 
+                name="alt_account_toggle_${index}" 
+                data-alt-toggle 
+                role="switch" 
+                aria-checked="false" 
+              />
+              <span class="switch-ui" aria-hidden="true"></span>
+              <b>That's my alt account</b>
+            </label>
+          </div>
+          <input type="email" id="artist_email_${index}" name="artist_email_${index}" placeholder="artist@example.com" required />
+        </div>
         <div class="link-grid">
           <div class="platform-field form-group" data-platform="spotify">
             <div class="platform-label-row">
@@ -2819,6 +2952,19 @@
           if (label) label.htmlFor = `artist_email_${idx}`;
         }
 
+        const altSwitch = block.querySelector("input[data-alt-toggle]");
+        if (idx === 0) {
+          const switchLabel = block.querySelector(".availability-switch:has(input[data-alt-toggle])") || block.querySelector(".availability-switch");
+          if (switchLabel && switchLabel.querySelector("input[data-alt-toggle]")) {
+            switchLabel.remove();
+          }
+        } else if (altSwitch) {
+          altSwitch.id = `alt_account_${idx}_switch`;
+          altSwitch.name = `alt_account_toggle_${idx}`;
+          const switchLabel = altSwitch.closest(".availability-switch");
+          if (switchLabel) switchLabel.htmlFor = `alt_account_${idx}_switch`;
+        }
+
         // Spotify field
         const spotifyGroup = block.querySelector(".platform-field[data-platform='spotify']") || block.querySelectorAll(".platform-field")[0];
         if (spotifyGroup) {
@@ -2945,8 +3091,15 @@
     function collectArtists() {
       return Array.from(document.querySelectorAll("#artistsContainer .artist-block")).map((block, idx) => {
         const artistName = block.querySelector("input[name^='artist_name_']")?.value.trim() || "";
-        const legalName = block.querySelector("input[name^='legal_name_']")?.value.trim() || "";
+        const legalInput = block.querySelector("input[name^='legal_name_']");
+        const rawLegal = legalInput?.value || "";
+        const legalName = formatLegalName(rawLegal);
+        if (legalInput && legalInput.value !== legalName) {
+          legalInput.value = legalName;
+        }
         const artistEmail = block.querySelector("input[name^='artist_email_']")?.value.trim() || "";
+        const altToggle = block.querySelector("input[data-alt-toggle]");
+        const isAltAccount = Boolean(altToggle && altToggle.checked);
         const spotifyInput = block.querySelector("input[data-platform-input='spotify']") || block.querySelector("input[name^='spotify_']");
         const appleInput = block.querySelector("input[data-platform-input='apple']") || block.querySelector("input[name^='apple_music_']");
         const spotifySwitch = block.querySelector("input[data-platform-toggle='spotify']") || block.querySelector("input[name^='no_spotify_toggle_']");
@@ -2958,6 +3111,7 @@
           artist_name: artistName,
           legal_name: legalName,
           email: artistEmail,
+          is_alt_account: isAltAccount,
           spotify: noSpotify ? null : spotifyInput?.value.trim() || null,
           apple_music: noApple ? null : appleInput?.value.trim() || null
         };
@@ -2966,7 +3120,7 @@
 
     function artistsToEmailText(artists) {
       return artists.map((artist) => [
-        `Artist ${artist.index}: ${artist.artist_name || "N/A"}`,
+        `Artist ${artist.index}: ${artist.artist_name || "N/A"}${artist.is_alt_account ? " (Alt Account)" : ""}`,
         `Legal Name: ${artist.legal_name || "N/A"}`,
         `Email: ${artist.email || "N/A"}`,
         `Spotify: ${artist.spotify || "N/A"}`,
@@ -3171,7 +3325,9 @@
       const isAr = currentPortalMode === "ar";
       let arData = null;
       if (isAr) {
-        const arName = document.getElementById("arNameInput")?.value.trim() || "";
+        const arNameInput = document.getElementById("arNameInput");
+        const arName = formatLegalName(arNameInput?.value || "");
+        if (arNameInput && arNameInput.value !== arName) arNameInput.value = arName;
         const arEmail = document.getElementById("arEmailInput")?.value.trim() || "";
         const arSource = document.getElementById("arSourceInput")?.value.trim() || "";
         const arTrendingLink = document.getElementById("arTrendingLinkInput")?.value.trim() || "";
@@ -3183,6 +3339,11 @@
             trigger?.focus();
           }
           openSubmissionModal("Missing A&R Information", "Please fill in all required A&R scout fields (Legal Name, Email, and Discovery Source).");
+          return;
+        }
+        if (!isValidLegalName(arName)) {
+          openSubmissionModal("Full Legal Name Required", 'Please enter your full legal name (First and Last name, e.g. "Daniel Malakhov") in the A&R scout section.');
+          arNameInput?.focus();
           return;
         }
         arData = {
@@ -3212,9 +3373,45 @@
         if (!sigmaSupabase) throw new Error("Supabase client was not loaded.");
 
         const artists = collectArtists();
+
+        for (const artist of artists) {
+          if (!isValidLegalName(artist.legal_name)) {
+            openSubmissionModal(
+              "Full Legal Name Required",
+              `Please enter a full legal name (First and Last name, e.g. "Daniel Malakhov") for Artist #${artist.index}. Single names like "${artist.legal_name || 'N/A'}" are not accepted for distribution agreements.`
+            );
+            const block = document.querySelectorAll("#artistsContainer .artist-block")[artist.index - 1];
+            block?.querySelector("input[name^='legal_name_']")?.focus();
+            return;
+          }
+        }
+
         if (artists.some((artist) => !artist.email)) {
           openSubmissionModal("Missing Artist Email", "Each artist needs an email address before you can submit.");
           return;
+        }
+
+        const emailMap = new Map();
+        for (const artist of artists) {
+          const email = (artist.email || "").trim().toLowerCase();
+          if (!email) continue;
+          if (!emailMap.has(email)) emailMap.set(email, []);
+          emailMap.get(email).push(artist);
+        }
+
+        for (const [email, list] of emailMap.entries()) {
+          if (list.length > 1) {
+            const unallowed = list.find((a, idx) => idx > 0 && !a.is_alt_account);
+            if (unallowed) {
+              openSubmissionModal(
+                "Duplicate Email Address",
+                `Artist #${unallowed.index} is using the same email (${email}) as Artist #${list[0].index}. Each artist must have a unique email address. If Artist #${unallowed.index} is your alternate alias, please switch ON "That's my alt account".`
+              );
+              const block = document.querySelectorAll("#artistsContainer .artist-block")[unallowed.index - 1];
+              block?.querySelector("input[name^='artist_email_']")?.focus();
+              return;
+            }
+          }
         }
         const additionalVersions = Array.from(form.querySelectorAll("input[name='additional_versions']:checked")).map((input) => input.value);
         const contactEmails = artists.map((artist) => artist.email).filter(Boolean);
@@ -3303,6 +3500,12 @@
     });
 
     document.querySelectorAll("#artistsContainer .artist-block").forEach(bindArtistControls);
+    const arNameInput = document.getElementById("arNameInput");
+    if (arNameInput) {
+      arNameInput.addEventListener("input", () => handleLegalNameInput(arNameInput));
+      arNameInput.addEventListener("blur", () => handleLegalNameBlur(arNameInput));
+      arNameInput.addEventListener("change", () => handleLegalNameBlur(arNameInput));
+    }
     renumberArtists();
     selectReleasePlatform("google_drive");
   </script>
