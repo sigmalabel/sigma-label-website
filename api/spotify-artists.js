@@ -30,7 +30,9 @@ async function getSpotifyToken() {
   });
   if (!response.ok) {
     const errorBody = await response.text().catch(() => '');
-    throw new Error(`Spotify authorization failed (${response.status}): ${errorBody}`);
+    const idMask = `${clientId.slice(0, 4)}...${clientId.slice(-3)} (len ${clientId.length})`;
+    const secretMask = `${clientSecret.slice(0, 4)}...${clientSecret.slice(-3)} (len ${clientSecret.length})`;
+    throw new Error(`Spotify authorization failed (${response.status}): ${errorBody} [ID: ${idMask}, Secret: ${secretMask}]`);
   }
   const payload = await response.json();
   spotifyAccessToken = payload.access_token;
