@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" href="assets/branding/label-icon.png" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Syne:wght@600;700;800&display=swap");
+    @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Manrope:wght@300;400;500;600;700;800&family=Syne:wght@600;700;800&display=swap");
 
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1219,8 +1219,33 @@
     .form-stage { margin:34px 0 17px; }
     .form-stage span { width:31px; height:31px; border-radius:50%; color:#fff; background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.2); font-size:.7rem; }
     .form-stage h3 { font-size:.76rem; font-weight:600; letter-spacing:.11em; color:rgba(255,255,255,.78); }
-    .artist-block { padding:20px; border-radius:24px; background:rgba(255,255,255,.032); border-color:rgba(255,255,255,.12); box-shadow:inset 0 1px 0 rgba(255,255,255,.08); }
-    .artist-block:focus-within { border-color:rgba(255,255,255,.3); background:rgba(255,255,255,.05); }
+    #artistsContainer {
+      position: relative;
+      z-index: 50;
+    }
+    #artistsContainer.has-menu-open,
+    #artistsContainer:focus-within,
+    #artistsContainer:has(.artist-search-menu:not([hidden])),
+    #artistsContainer:has(.artist-search-note:not([hidden])) {
+      z-index: 500;
+    }
+    .artist-block {
+      position: relative;
+      z-index: 1;
+      padding: 20px;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, .032);
+      border-color: rgba(255, 255, 255, .12);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+    }
+    .artist-block.has-menu-open,
+    .artist-block:focus-within,
+    .artist-block:has(.artist-search-menu:not([hidden])),
+    .artist-block:has(.artist-search-note:not([hidden])) {
+      border-color: rgba(255, 255, 255, .3);
+      background: rgba(255, 255, 255, .05);
+      z-index: 100;
+    }
     .artist-index { font-weight:600; }
     .form-group label, .field-head label { color:rgba(255,255,255,.72); font-size:.76rem; font-weight:500; }
     input, textarea, select { min-height:56px; border-radius:18px; padding:14px 16px; background:rgba(255,255,255,.035); border-color:rgba(255,255,255,.12); }
@@ -1233,6 +1258,417 @@
     .version-option input:checked + span { background:rgba(255,255,255,.09); color:#fff; box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); }
     .version-option input:checked + span::before { background:#fff; border-color:#fff; box-shadow:inset 0 0 0 4px #151515; }
     .availability-toggle.active { color:#111; background:rgba(255,255,255,.88); }
+
+    /* --- Platform Fields & Artist Search (Amethyst Theme & Component) --- */
+    .platform-field {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 0;
+      margin-bottom: 15px;
+    }
+    .platform-field.menu-open,
+    .platform-field.dropdown-open,
+    .platform-field:focus-within,
+    .platform-field:has(.artist-search-menu:not([hidden])),
+    .platform-field:has(.artist-search-note:not([hidden])) {
+      z-index: 1000;
+    }
+    .platform-label-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.76rem;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+    .platform-label-row span,
+    .platform-label-row label.field-title {
+      margin-bottom: 0 !important;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 0.76rem;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+    }
+    .availability-switch {
+      display: inline-flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 8px;
+      flex: 0 0 auto;
+      cursor: pointer;
+      color: #9e9bb2;
+      font-size: 0.75rem;
+      user-select: none;
+      -webkit-user-select: none;
+      margin-bottom: 0 !important;
+      padding: 0 !important;
+      line-height: 1;
+    }
+    .availability-switch input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+    .availability-switch b {
+      font-weight: 500;
+      white-space: nowrap;
+      color: #9e9bb2;
+      letter-spacing: -0.01em;
+      transition: color 250ms ease;
+      line-height: 1;
+    }
+    .availability-switch:hover b {
+      color: #cfcbdd;
+    }
+    .switch-ui {
+      width: 32px;
+      height: 18px;
+      border-radius: 999px;
+      background: rgba(18, 14, 28, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+      flex-shrink: 0;
+      box-sizing: border-box;
+      transition: background-color 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+      position: relative;
+      display: inline-block;
+      vertical-align: middle;
+      margin: 0;
+    }
+    .switch-ui::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #8b859e;
+      box-sizing: border-box;
+      transition: transform 250ms cubic-bezier(0.4, 0, 0.2, 1), background-color 250ms ease, box-shadow 250ms ease;
+    }
+    .availability-switch input:checked + .switch-ui {
+      background: rgba(124, 77, 255, 0.28);
+      border-color: #8b5cf6;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2), 0 0 10px rgba(139, 92, 246, 0.25);
+    }
+    .availability-switch input:checked + .switch-ui::after {
+      transform: translateX(14px);
+      background: #ede8ff;
+      box-shadow: 0 0 8px rgba(167, 139, 250, 0.85), 0 0 2px #ffffff;
+    }
+    .availability-switch input:checked ~ b {
+      color: #dcd8ea;
+    }
+    .availability-switch input:focus-visible + .switch-ui {
+      outline: 2px solid #a78bfa;
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.35);
+    }
+    .platform-field.is-unavailable > input,
+    .platform-field.is-unavailable .profile-url-input {
+      opacity: 0.4 !important;
+      cursor: not-allowed !important;
+      pointer-events: none !important;
+      filter: grayscale(30%);
+      transition: opacity 250ms ease, border-color 250ms ease;
+    }
+
+    /* Artist Search Autocomplete Dropdown */
+    .artist-search-menu {
+      position: absolute;
+      z-index: 1200;
+      top: calc(100% + 7px);
+      left: 0;
+      right: 0;
+      max-height: 310px;
+      overflow-y: auto;
+      padding: 7px;
+      border: 1px solid rgba(211, 174, 255, 0.22);
+      border-radius: 16px;
+      background: #110a18;
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.65), inset 0 1px rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+    .artist-search-menu[hidden] {
+      display: none;
+    }
+    .artist-search-option {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      gap: 11px;
+      align-items: center;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 11px;
+      color: #efe5f8;
+      background: transparent;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s ease;
+      box-sizing: border-box;
+    }
+    .artist-search-option:hover,
+    .artist-search-option.active {
+      background: rgba(153, 82, 218, 0.18);
+    }
+    .artist-search-avatar {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(218, 190, 255, 0.18);
+      border-radius: 10px;
+      color: #d7b1ff;
+      background: linear-gradient(145deg, rgba(160, 82, 226, 0.3), rgba(41, 20, 58, 0.7));
+      font-weight: 600;
+      font-size: 1.05rem;
+      flex-shrink: 0;
+    }
+    .artist-search-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .artist-search-copy {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .artist-search-name {
+      display: block;
+      overflow: hidden;
+      color: #f6f0ff;
+      font-size: 0.84rem;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: -0.01em;
+    }
+    .artist-search-meta {
+      display: block;
+      overflow: hidden;
+      color: #8b7d99;
+      font: 0.62rem/1.2 "DM Mono", monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      letter-spacing: 0.02em;
+    }
+    .artist-search-actions,
+    .artist-selected-actions {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+    .artist-redirect,
+    .artist-change {
+      border: 1px solid rgba(199, 149, 255, 0.26);
+      border-radius: 8px;
+      padding: 6px 10px;
+      color: #d9b8ff;
+      background: rgba(128, 67, 177, 0.13);
+      font: 500 0.62rem "DM Mono", monospace;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .artist-redirect:hover,
+    .artist-change:hover {
+      border-color: rgba(214, 179, 255, 0.52);
+      color: #ffffff;
+      background: rgba(148, 77, 211, 0.25);
+    }
+    .artist-change {
+      cursor: pointer;
+    }
+
+    /* Selected Artist Card */
+    .has-selected-artist {
+      position: absolute !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+      height: 0 !important;
+      width: 0 !important;
+      overflow: hidden !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: 0 !important;
+    }
+    .artist-selected {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 12px;
+      border: 1px solid rgba(185, 124, 238, 0.3);
+      border-radius: 16px;
+      background: rgba(113, 54, 160, 0.12);
+      box-shadow: inset 0 0 18px rgba(156, 83, 221, 0.04);
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .artist-selected-identity {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .artist-selected-avatar {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      border: 1px solid rgba(218, 190, 255, 0.2);
+      border-radius: 9px;
+      color: #d7b1ff;
+      background: linear-gradient(145deg, rgba(160, 82, 226, 0.3), rgba(41, 20, 58, 0.7));
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+    .artist-selected-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .artist-selected code {
+      overflow: hidden;
+      color: #f0dcff;
+      font: 500 0.78rem/1.2 "DM Mono", monospace;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Artist Search Note (Loading, Empty, Error) */
+    .artist-search-note {
+      position: absolute;
+      z-index: 1201;
+      top: calc(100% + 7px);
+      left: 0;
+      right: 0;
+      padding: 12px 14px;
+      border: 1px solid rgba(211, 174, 255, 0.15);
+      border-radius: 13px;
+      color: #95889f;
+      background: #110a18;
+      font-size: 0.74rem;
+      line-height: 1.45;
+      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.45);
+    }
+    .artist-search-note[hidden] {
+      display: none;
+    }
+    .artist-search-note.error {
+      color: #d7b4f1;
+    }
+
+    /* Add Another Artist & Remove Artist styles */
+    .add-artist-wrapper {
+      margin: 12px 0 20px;
+    }
+    .add-artist-btn,
+    .add-artist {
+      width: 100%;
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 16px;
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: #dcefff;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid rgba(211, 174, 255, 0.2);
+      background: rgba(128, 67, 177, 0.1);
+    }
+    .add-artist-btn .add-artist-icon,
+    .add-artist span {
+      font-size: 1.15rem;
+      line-height: 1;
+      font-weight: 400;
+      margin-right: 2px;
+      color: #b46df4;
+    }
+    .add-artist-btn:hover,
+    .add-artist:hover {
+      border-color: rgba(167, 139, 250, 0.5);
+      background: rgba(124, 77, 255, 0.18);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    .remove-artist {
+      width: auto !important;
+      height: auto !important;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 13px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      color: #ff9e9e;
+      background: rgba(255, 82, 82, 0.08);
+      border: 1px solid rgba(255, 100, 100, 0.24);
+      border-radius: 999px;
+      cursor: pointer;
+      line-height: 1;
+      transition: all 0.2s ease;
+    }
+    .remove-artist:hover {
+      background: rgba(255, 82, 82, 0.18);
+      border-color: rgba(255, 120, 120, 0.45);
+      color: #ffc4c4;
+      transform: translateY(-1px);
+    }
+    /* Strictly ensure Artist #1 can never display a remove button */
+    .artist-block[data-index="0"] .remove-artist,
+    #artistsContainer .artist-block:first-child .remove-artist {
+      display: none !important;
+      pointer-events: none !important;
+    }
+
+    @media (max-width: 480px) {
+      .platform-label-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+      }
+      .artist-selected {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 10px;
+      }
+      .artist-selected-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+    }
     .divider { margin:30px 0; background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent); }
     .submission-disclaimer { text-align:center; margin:23px auto 14px; max-width:620px; }
     .submit-btn { min-height:62px; border-radius:999px; color:#111; background:rgba(255,255,255,.92); font-weight:700; letter-spacing:-.02em; box-shadow:inset 0 1px 0 #fff,0 18px 48px rgba(0,0,0,.24); }
@@ -1427,20 +1863,84 @@
 
         <div class="form-stage" id="artistStage"><span>01</span><h3>Artist details</h3></div>
         <div id="artistsContainer">
-          <div class="artist-block" data-index="0">
-            <div class="artist-head"><h4 class="artist-index">Artist #1</h4><button type="button" class="remove-artist" onclick="removeArtist(this)" aria-label="Remove artist">×</button></div>
+          <div class="artist-block" data-index="0" data-artist>
+            <div class="artist-head"><h4 class="artist-index">Artist #1</h4></div>
             <div class="two-col">
-              <div class="form-group"><label>Artist name *</label><input type="text" name="artist_name_0" placeholder="e.g. DJ Sigma" required /></div>
-              <div class="form-group"><label>Legal name *</label><input type="text" name="legal_name_0" placeholder="Full legal name" required /></div>
+              <div class="form-group"><label class="field-title" for="artist_name_0">Artist name *</label><input type="text" id="artist_name_0" name="artist_name_0" placeholder="e.g. DJ Sigma" required /></div>
+              <div class="form-group"><label class="field-title" for="legal_name_0">Legal name *</label><input type="text" id="legal_name_0" name="legal_name_0" placeholder="Full legal name" required /></div>
             </div>
-            <div class="form-group"><label>Artist email *</label><input type="email" name="artist_email_0" placeholder="artist@example.com" required /></div>
+            <div class="form-group"><label class="field-title" for="artist_email_0">Artist email *</label><input type="email" id="artist_email_0" name="artist_email_0" placeholder="artist@example.com" required /></div>
             <div class="link-grid">
-              <div class="form-group link-field"><div class="field-head"><label>Spotify profile link</label><input type="hidden" name="no_spotify_0" value="0" /><button type="button" class="availability-toggle" aria-pressed="false" onclick="toggleAvailability(this, 'spotify_0', 'no_spotify_0')">I don't have one</button></div><input type="url" name="spotify_0" placeholder="https://open.spotify.com/artist/..." /></div>
-              <div class="form-group link-field"><div class="field-head"><label>Apple Music link</label><input type="hidden" name="no_apple_0" value="0" /><button type="button" class="availability-toggle" aria-pressed="false" onclick="toggleAvailability(this, 'apple_music_0', 'no_apple_0')">I don't have one</button></div><input type="url" name="apple_music_0" placeholder="https://music.apple.com/..." /></div>
+              <div class="platform-field form-group" data-platform="spotify">
+                <div class="platform-label-row">
+                  <span>Spotify profile</span>
+                  <label class="availability-switch" for="no_spotify_0_switch">
+                    <input 
+                      type="checkbox" 
+                      id="no_spotify_0_switch" 
+                      name="no_spotify_toggle_0" 
+                      data-platform-toggle="spotify" 
+                      role="switch" 
+                      aria-checked="false" 
+                    />
+                    <span class="switch-ui" aria-hidden="true"></span>
+                    <b>I don't have one</b>
+                  </label>
+                  <input type="hidden" name="no_spotify_0" id="no_spotify_0" value="0" />
+                </div>
+                <input 
+                  type="text" 
+                  inputmode="url" 
+                  autocomplete="off" 
+                  id="spotify_0" 
+                  name="spotify_0" 
+                  class="profile-url-input" 
+                  data-platform-input="spotify" 
+                  data-artist-search="spotify" 
+                  aria-label="Spotify artist search or profile URL" 
+                  aria-autocomplete="list" 
+                  aria-expanded="false" 
+                  placeholder="Type an artist name or paste a Spotify URL" 
+                />
+              </div>
+              <div class="platform-field form-group" data-platform="apple">
+                <div class="platform-label-row">
+                  <span>Apple Music profile</span>
+                  <label class="availability-switch" for="no_apple_0_switch">
+                    <input 
+                      type="checkbox" 
+                      id="no_apple_0_switch" 
+                      name="no_apple_toggle_0" 
+                      data-platform-toggle="apple" 
+                      role="switch" 
+                      aria-checked="false" 
+                    />
+                    <span class="switch-ui" aria-hidden="true"></span>
+                    <b>I don't have one</b>
+                  </label>
+                  <input type="hidden" name="no_apple_0" id="no_apple_0" value="0" />
+                </div>
+                <input 
+                  type="text" 
+                  inputmode="url" 
+                  autocomplete="off" 
+                  id="apple_music_0" 
+                  name="apple_music_0" 
+                  class="profile-url-input" 
+                  data-platform-input="apple" 
+                  data-artist-search="apple" 
+                  aria-label="Apple Music artist search or profile URL" 
+                  aria-autocomplete="list" 
+                  aria-expanded="false" 
+                  placeholder="Type an artist name or paste an Apple Music URL" 
+                />
+              </div>
             </div>
           </div>
         </div>
-        <button type="button" class="btn btn-outline" onclick="addArtist()">+ Add another artist</button>
+        <div class="add-artist-wrapper">
+          <button type="button" class="btn btn-outline add-artist-btn add-artist" id="addArtistBtn" onclick="addArtist()"><span class="add-artist-icon" aria-hidden="true">＋</span> Add another artist</button>
+        </div>
 
         <hr class="divider" />
         <div class="form-stage"><span>02</span><h3>Release package</h3></div>
@@ -1687,6 +2187,10 @@
     const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ZH9uyIpwJ08wdlXMoCAEWA_AymPbP8U";
     const sigmaSupabase = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 
+    // If hosting frontend on GitHub Pages (sigmalabel.xyz), set this to your deployed Vercel backend URL
+    // (e.g. "https://sigma-label-backend.vercel.app"). Leave empty if deploying everything directly on Vercel or running locally.
+    const VERCEL_BACKEND_URL = "";
+
     const navLinks = document.getElementById("navLinks");
     const hamburger = document.getElementById("hamburger");
     const playlistTrigger = document.getElementById("playlistTrigger");
@@ -1785,63 +2289,595 @@
 
     let artistCount = 1;
 
+    const isProfileUrl = (value) => /^https?:\/\//i.test(value.trim());
+
+    const appleJsonp = (url, signal) => new Promise((resolve, reject) => {
+      const callbackName = `amethystAppleSearch_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const script = document.createElement("script");
+      const timeout = setTimeout(() => finish(new Error("Apple Music search timed out")), 7000);
+      const finish = (error, value) => {
+        clearTimeout(timeout);
+        script.remove();
+        delete window[callbackName];
+        signal?.removeEventListener("abort", onAbort);
+        if (error) reject(error);
+        else resolve(value);
+      };
+      const onAbort = () => finish(new DOMException("Aborted", "AbortError"));
+      window[callbackName] = (payload) => finish(null, payload);
+      script.onerror = () => finish(new Error("Apple Music search failed"));
+      script.src = `${url}${url.includes("?") ? "&" : "?"}callback=${callbackName}`;
+      signal?.addEventListener("abort", onAbort, { once: true });
+      document.head.append(script);
+    });
+
+    const searchAppleJsonp = async (query, signal) => {
+      const payload = await appleJsonp(
+        `https://itunes.apple.com/search?media=music&entity=musicArtist&country=US&limit=8&term=${encodeURIComponent(query)}`,
+        signal
+      );
+      const seen = new Set();
+      const results = (payload.results || []).map((artist) => {
+        const id = String(artist.artistId || "");
+        const slug = String(artist.artistName || "artist").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+        return {
+          id,
+          name: artist.artistName || "",
+          url: artist.artistLinkUrl || artist.artistViewUrl || (id ? `https://music.apple.com/us/artist/${slug}/${id}` : ""),
+          image: artist.artworkUrl100 || "",
+          subtitle: artist.primaryGenreName || "Apple Music artist"
+        };
+      }).filter((artist) => artist.id && artist.name && artist.url && !seen.has(artist.id) && seen.add(artist.id));
+
+      return Promise.all(results.map(async (artist) => {
+        try {
+          const artworkPayload = await appleJsonp(
+            `https://itunes.apple.com/lookup?id=${encodeURIComponent(artist.id)}&entity=album&limit=1&country=US`,
+            signal
+          );
+          const album = (artworkPayload.results || []).find((item) => item.wrapperType === "collection" && item.artworkUrl100);
+          if (album?.artworkUrl100) artist.image = album.artworkUrl100.replace("100x100bb", "240x240bb");
+        } catch (error) {
+          if (error.name === "AbortError") throw error;
+        }
+        return artist;
+      }));
+    };
+
+    function bindArtistSearch(field) {
+      const input = field.querySelector("[data-artist-search]");
+      if (!input || input.dataset.searchBound === "true") return;
+      input.dataset.searchBound = "true";
+      const platform = input.dataset.artistSearch;
+      const menu = document.createElement("div");
+      const note = document.createElement("div");
+      const menuId = `artist-search-${Math.random().toString(36).slice(2)}`;
+      menu.className = "artist-search-menu";
+      menu.id = menuId;
+      menu.hidden = true;
+      menu.setAttribute("role", "listbox");
+      note.className = "artist-search-note";
+      note.hidden = true;
+      field.append(menu, note);
+      input.setAttribute("aria-controls", menuId);
+
+      let timer;
+      let controller;
+      let results = [];
+      let activeIndex = -1;
+
+      const clearSelected = () => {
+        field.querySelector(".artist-selected")?.remove();
+        input.classList.remove("has-selected-artist");
+      };
+
+      const setMenuOpen = (open) => {
+        field.classList.toggle("menu-open", open);
+        field.classList.toggle("dropdown-open", open);
+        const block = field.closest(".artist-block");
+        if (block) block.classList.toggle("has-menu-open", open);
+        const container = document.getElementById("artistsContainer");
+        if (container) {
+          if (open) container.classList.add("has-menu-open");
+          else if (!container.querySelector(".platform-field.menu-open")) container.classList.remove("has-menu-open");
+        }
+      };
+
+      const close = () => {
+        menu.hidden = true;
+        note.hidden = true;
+        input.setAttribute("aria-expanded", "false");
+        input.removeAttribute("aria-activedescendant");
+        activeIndex = -1;
+        setMenuOpen(false);
+      };
+
+      const showNote = (message, isError = false) => {
+        menu.hidden = true;
+        note.textContent = message;
+        note.classList.toggle("error", isError);
+        note.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+        setMenuOpen(true);
+      };
+
+      const selectResult = (result) => {
+        input.value = result.url;
+        input.dataset.artistId = result.id;
+        input.dataset.artistName = result.name;
+        clearSelected();
+
+        const selected = document.createElement("div");
+        selected.className = "artist-selected";
+
+        const identity = document.createElement("span");
+        identity.className = "artist-selected-identity";
+
+        const avatar = document.createElement("span");
+        avatar.className = "artist-selected-avatar";
+        if (result.image && /^https:\/\//i.test(result.image)) {
+          const image = document.createElement("img");
+          image.src = result.image;
+          image.alt = "";
+          avatar.append(image);
+        } else {
+          avatar.textContent = result.name.slice(0, 1).toUpperCase();
+        }
+
+        const name = document.createElement("code");
+        name.textContent = result.name;
+        identity.append(avatar, name);
+
+        const actions = document.createElement("span");
+        actions.className = "artist-selected-actions";
+
+        const redirect = document.createElement("a");
+        redirect.className = "artist-redirect";
+        redirect.href = result.url;
+        redirect.target = "_blank";
+        redirect.rel = "noopener noreferrer";
+        redirect.textContent = "Check page";
+        redirect.setAttribute("aria-label", `Open ${result.name} on ${platform === "apple" ? "Apple Music" : "Spotify"}`);
+
+        const change = document.createElement("button");
+        change.type = "button";
+        change.className = "artist-change";
+        change.textContent = "Change";
+        change.addEventListener("click", () => {
+          clearSelected();
+          input.value = "";
+          delete input.dataset.artistId;
+          delete input.dataset.artistName;
+          input.focus();
+        });
+
+        actions.append(redirect, change);
+        selected.append(identity, actions);
+        input.after(selected);
+        input.classList.add("has-selected-artist");
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        close();
+      };
+
+      const setActive = (index) => {
+        const options = [...menu.querySelectorAll(".artist-search-option")];
+        options.forEach((option) => option.classList.remove("active"));
+        if (!options.length) return;
+        activeIndex = (index + options.length) % options.length;
+        options[activeIndex].classList.add("active");
+        options[activeIndex].scrollIntoView({ block: "nearest" });
+        input.setAttribute("aria-activedescendant", options[activeIndex].id);
+      };
+
+      const render = (items) => {
+        results = items;
+        menu.replaceChildren();
+        note.hidden = true;
+        items.forEach((result, index) => {
+          const option = document.createElement("div");
+          option.className = "artist-search-option";
+          option.id = `${menuId}-option-${index}`;
+          option.setAttribute("role", "option");
+
+          const avatar = document.createElement("span");
+          avatar.className = "artist-search-avatar";
+          if (result.image && /^https:\/\//i.test(result.image)) {
+            const image = document.createElement("img");
+            image.src = result.image;
+            image.alt = "";
+            image.loading = "lazy";
+            avatar.append(image);
+          } else {
+            avatar.textContent = result.name.slice(0, 1).toUpperCase();
+          }
+
+          const copy = document.createElement("span");
+          copy.className = "artist-search-copy";
+          const name = document.createElement("span");
+          name.className = "artist-search-name";
+          name.textContent = result.name;
+          const meta = document.createElement("span");
+          meta.className = "artist-search-meta";
+          meta.textContent = result.subtitle || (platform === "apple" ? "Apple Music artist" : "Official artist profile");
+          copy.append(name, meta);
+
+          const actions = document.createElement("span");
+          actions.className = "artist-search-actions";
+          const redirect = document.createElement("a");
+          redirect.className = "artist-redirect";
+          redirect.href = result.url;
+          redirect.target = "_blank";
+          redirect.rel = "noopener noreferrer";
+          redirect.textContent = "Check";
+          redirect.setAttribute("aria-label", `Open ${result.name} profile in a new tab`);
+          redirect.addEventListener("pointerdown", (event) => event.stopPropagation());
+          redirect.addEventListener("click", (event) => event.stopPropagation());
+          actions.append(redirect);
+
+          option.append(avatar, copy, actions);
+          option.addEventListener("pointerdown", (event) => event.preventDefault());
+          option.addEventListener("click", () => selectResult(result));
+          menu.append(option);
+        });
+
+        menu.hidden = !items.length;
+        input.setAttribute("aria-expanded", String(Boolean(items.length)));
+        if (items.length) {
+          setMenuOpen(true);
+          setActive(0);
+        } else {
+          setMenuOpen(false);
+        }
+      };
+
+      const search = async (query) => {
+        controller?.abort();
+        controller = new AbortController();
+        showNote(`Searching ${platform === "apple" ? "Apple Music" : "Spotify"}…`);
+        try {
+          if (platform === "apple") {
+            const appleResults = await searchAppleJsonp(query, controller.signal);
+            if (!appleResults.length) {
+              showNote("No matching artists found. Check the spelling or paste the profile URL.", true);
+              return;
+            }
+            render(appleResults);
+            return;
+          }
+          const getApiUrl = (endpoint) => {
+            if (window.location.protocol === "file:" || !window.location.host) {
+              return `http://127.0.0.1:3000${endpoint}`;
+            }
+            if (VERCEL_BACKEND_URL && window.location.hostname !== "127.0.0.1" && window.location.hostname !== "localhost") {
+              return `${VERCEL_BACKEND_URL.replace(/\/+$/, "")}${endpoint}`;
+            }
+            return endpoint;
+          };
+          const response = await fetch(getApiUrl(`/api/${platform}-artists?q=${encodeURIComponent(query)}`), { signal: controller.signal });
+          const payload = await response.json();
+          if (!response.ok) {
+            if (payload.code === "spotify_unconfigured") {
+              showNote("Spotify search is awaiting its private API connection. You can still paste a Spotify artist URL.", true);
+            } else {
+              showNote("Search is temporarily unavailable. You can paste the artist URL manually.", true);
+            }
+            return;
+          }
+          if (!payload.results?.length) {
+            showNote("No matching artists found. Check the spelling or paste the profile URL.", true);
+            return;
+          }
+          render(payload.results);
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            if (window.location.protocol === "file:" || !window.location.host) {
+              showNote("Spotify search requires the local server. Double-click 'start-server.bat' (or run 'npm start') to start it. You can also paste a Spotify URL manually.", true);
+            } else {
+              showNote("Search is temporarily unavailable. You can paste the artist URL manually.", true);
+            }
+          }
+        }
+      };
+
+      input.addEventListener("input", () => {
+        clearSelected();
+        delete input.dataset.artistId;
+        delete input.dataset.artistName;
+        clearTimeout(timer);
+        const query = input.value.trim();
+        if (query.length < 2 || isProfileUrl(query)) {
+          controller?.abort();
+          close();
+          return;
+        }
+        timer = setTimeout(() => search(query), 320);
+      });
+
+      input.addEventListener("keydown", (event) => {
+        if (menu.hidden || !results.length) {
+          if (event.key === "Escape") close();
+          return;
+        }
+        if (event.key === "ArrowDown") { event.preventDefault(); setActive(activeIndex + 1); }
+        if (event.key === "ArrowUp") { event.preventDefault(); setActive(activeIndex - 1); }
+        if (event.key === "Enter") { event.preventDefault(); selectResult(results[activeIndex]); }
+        if (event.key === "Escape") close();
+      });
+
+      input.addEventListener("focus", () => {
+        if (results.length && !isProfileUrl(input.value)) {
+          menu.hidden = false;
+          input.setAttribute("aria-expanded", "true");
+          setMenuOpen(true);
+        }
+      });
+
+      field.addEventListener("focusout", (event) => {
+        if (!field.contains(event.relatedTarget)) {
+          close();
+        }
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        if (!field.contains(event.target)) close();
+      });
+
+      field._closeArtistSearch = close;
+    }
+
+    function bindArtistControls(artistBlock) {
+      artistBlock.querySelectorAll(".platform-field").forEach(bindArtistSearch);
+
+      artistBlock.querySelectorAll("[data-platform-toggle]").forEach((toggle) => {
+        toggle.addEventListener("change", () => {
+          const platform = toggle.dataset.platformToggle;
+          const field = toggle.closest(".platform-field");
+          const input = field.querySelector(`[data-platform-input="${platform}"]`);
+          const hiddenState = field.querySelector(`input[name^="no_${platform === "apple" ? "apple" : "spotify"}_"]`);
+          field.classList.toggle("is-unavailable", toggle.checked);
+          if (input) input.disabled = toggle.checked;
+          toggle.setAttribute("aria-checked", String(toggle.checked));
+          if (hiddenState) hiddenState.value = toggle.checked ? "1" : "0";
+          if (toggle.checked) {
+            if (input) {
+              input.value = "";
+              delete input.dataset.artistId;
+              delete input.dataset.artistName;
+              input.classList.remove("has-selected-artist");
+            }
+            field.querySelector(".artist-selected")?.remove();
+            field._closeArtistSearch?.();
+          }
+        });
+      });
+
+      const removeBtn = artistBlock.querySelector(".remove-artist");
+      if (removeBtn) {
+        removeBtn.addEventListener("click", () => removeArtist(removeBtn));
+      }
+    }
+
     function buildArtistTemplate(index) {
       return `
-        <div class="artist-head"><h4 class="artist-index">Artist #${index + 1}</h4><button type="button" class="remove-artist" onclick="removeArtist(this)" aria-label="Remove artist">×</button></div>
-        <div class="two-col">
-          <div class="form-group"><label>Artist name *</label><input type="text" name="artist_name_${index}" placeholder="e.g. DJ Sigma" required /></div>
-          <div class="form-group"><label>Legal name *</label><input type="text" name="legal_name_${index}" placeholder="Full legal name" required /></div>
+        <div class="artist-head">
+          <h4 class="artist-index">Artist #${index + 1}</h4>
+          ${index > 0 ? `<button type="button" class="remove-artist" onclick="removeArtist(this)" aria-label="Remove Artist"><span aria-hidden="true" style="font-size:1rem;line-height:1;">✕</span> Remove</button>` : ""}
         </div>
-        <div class="form-group"><label>Artist email *</label><input type="email" name="artist_email_${index}" placeholder="artist@example.com" required /></div>
+        <div class="two-col">
+          <div class="form-group"><label class="field-title" for="artist_name_${index}">Artist name *</label><input type="text" id="artist_name_${index}" name="artist_name_${index}" placeholder="e.g. DJ Sigma" required /></div>
+          <div class="form-group"><label class="field-title" for="legal_name_${index}">Legal name *</label><input type="text" id="legal_name_${index}" name="legal_name_${index}" placeholder="Full legal name" required /></div>
+        </div>
+        <div class="form-group"><label class="field-title" for="artist_email_${index}">Artist email *</label><input type="email" id="artist_email_${index}" name="artist_email_${index}" placeholder="artist@example.com" required /></div>
         <div class="link-grid">
-          <div class="form-group link-field"><div class="field-head"><label>Spotify profile link</label><input type="hidden" name="no_spotify_${index}" value="0" /><button type="button" class="availability-toggle" aria-pressed="false" onclick="toggleAvailability(this, 'spotify_${index}', 'no_spotify_${index}')">Not available</button></div><input type="url" name="spotify_${index}" placeholder="https://open.spotify.com/artist/..." /></div>
-          <div class="form-group link-field"><div class="field-head"><label>Apple Music link</label><input type="hidden" name="no_apple_${index}" value="0" /><button type="button" class="availability-toggle" aria-pressed="false" onclick="toggleAvailability(this, 'apple_music_${index}', 'no_apple_${index}')">Not available</button></div><input type="url" name="apple_music_${index}" placeholder="https://music.apple.com/..." /></div>
+          <div class="platform-field form-group" data-platform="spotify">
+            <div class="platform-label-row">
+              <span>Spotify profile</span>
+              <label class="availability-switch" for="no_spotify_${index}_switch">
+                <input 
+                  type="checkbox" 
+                  id="no_spotify_${index}_switch" 
+                  name="no_spotify_toggle_${index}" 
+                  data-platform-toggle="spotify" 
+                  role="switch" 
+                  aria-checked="false" 
+                />
+                <span class="switch-ui" aria-hidden="true"></span>
+                <b>I don't have one</b>
+              </label>
+              <input type="hidden" name="no_spotify_${index}" id="no_spotify_${index}" value="0" />
+            </div>
+            <input 
+              type="text" 
+              inputmode="url" 
+              autocomplete="off" 
+              id="spotify_${index}" 
+              name="spotify_${index}" 
+              class="profile-url-input" 
+              data-platform-input="spotify" 
+              data-artist-search="spotify" 
+              aria-label="Spotify artist search or profile URL" 
+              aria-autocomplete="list" 
+              aria-expanded="false" 
+              placeholder="Type an artist name or paste a Spotify URL" 
+            />
+          </div>
+          <div class="platform-field form-group" data-platform="apple">
+            <div class="platform-label-row">
+              <span>Apple Music profile</span>
+              <label class="availability-switch" for="no_apple_${index}_switch">
+                <input 
+                  type="checkbox" 
+                  id="no_apple_${index}_switch" 
+                  name="no_apple_toggle_${index}" 
+                  data-platform-toggle="apple" 
+                  role="switch" 
+                  aria-checked="false" 
+                />
+                <span class="switch-ui" aria-hidden="true"></span>
+                <b>I don't have one</b>
+              </label>
+              <input type="hidden" name="no_apple_${index}" id="no_apple_${index}" value="0" />
+            </div>
+            <input 
+              type="text" 
+              inputmode="url" 
+              autocomplete="off" 
+              id="apple_music_${index}" 
+              name="apple_music_${index}" 
+              class="profile-url-input" 
+              data-platform-input="apple" 
+              data-artist-search="apple" 
+              aria-label="Apple Music artist search or profile URL" 
+              aria-autocomplete="list" 
+              aria-expanded="false" 
+              placeholder="Type an artist name or paste an Apple Music URL" 
+            />
+          </div>
         </div>`;
     }
 
     function addArtist() {
       const container = document.getElementById("artistsContainer");
       if (!container) return;
+      const currentBlocks = container.querySelectorAll(".artist-block");
+      const nextIndex = currentBlocks.length;
       const block = document.createElement("div");
       block.className = "artist-block";
-      block.dataset.index = String(artistCount);
-      block.innerHTML = buildArtistTemplate(artistCount);
-      artistCount += 1;
+      block.dataset.index = String(nextIndex);
+      block.setAttribute("data-artist", "");
+      block.innerHTML = buildArtistTemplate(nextIndex);
       container.appendChild(block);
+      bindArtistControls(block);
+      artistCount = nextIndex + 1;
       renumberArtists();
+      block.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "center" });
     }
 
     function removeArtist(button) {
-      const blocks = document.querySelectorAll("#artistsContainer .artist-block");
-      if (blocks.length <= 1) return;
-      button.closest(".artist-block")?.remove();
+      const block = button.closest(".artist-block");
+      if (!block) return;
+      const container = document.getElementById("artistsContainer");
+      if (!container) return;
+      const blocks = Array.from(container.querySelectorAll(".artist-block"));
+      const blockIndex = blocks.indexOf(block);
+      if (blockIndex <= 0 || blocks.length <= 1) return;
+      block.remove();
       renumberArtists();
     }
 
     function renumberArtists() {
-      const blocks = document.querySelectorAll("#artistsContainer .artist-block");
+      const container = document.getElementById("artistsContainer");
+      if (!container) return;
+      const blocks = container.querySelectorAll(".artist-block");
       blocks.forEach((block, idx) => {
-        block.querySelector(".artist-index").textContent = `Artist #${idx + 1}`;
-        const removeBtn = block.querySelector(".remove-artist");
-        if (removeBtn) removeBtn.style.display = blocks.length <= 1 ? "none" : "grid";
+        block.dataset.index = String(idx);
+        const heading = block.querySelector(".artist-index");
+        if (heading) heading.textContent = `Artist #${idx + 1}`;
+
+        let removeBtn = block.querySelector(".remove-artist");
+        if (idx === 0) {
+          if (removeBtn) removeBtn.remove();
+        } else {
+          if (!removeBtn) {
+            const head = block.querySelector(".artist-head");
+            if (head) {
+              removeBtn = document.createElement("button");
+              removeBtn.type = "button";
+              removeBtn.className = "remove-artist";
+              removeBtn.onclick = function() { removeArtist(this); };
+              removeBtn.setAttribute("aria-label", "Remove Artist");
+              removeBtn.innerHTML = '<span aria-hidden="true" style="font-size:1rem;line-height:1;">✕</span> Remove';
+              head.appendChild(removeBtn);
+            }
+          } else {
+            removeBtn.style.display = "inline-flex";
+          }
+        }
+
+        // Re-index form field names and IDs while preserving input values and data
+        const nameInput = block.querySelector("input[name^='artist_name_']");
+        if (nameInput) {
+          nameInput.name = `artist_name_${idx}`;
+          nameInput.id = `artist_name_${idx}`;
+          const label = block.querySelector(`label[for^='artist_name_']`);
+          if (label) label.htmlFor = `artist_name_${idx}`;
+        }
+
+        const legalInput = block.querySelector("input[name^='legal_name_']");
+        if (legalInput) {
+          legalInput.name = `legal_name_${idx}`;
+          legalInput.id = `legal_name_${idx}`;
+          const label = block.querySelector(`label[for^='legal_name_']`);
+          if (label) label.htmlFor = `legal_name_${idx}`;
+        }
+
+        const emailInput = block.querySelector("input[name^='artist_email_']");
+        if (emailInput) {
+          emailInput.name = `artist_email_${idx}`;
+          emailInput.id = `artist_email_${idx}`;
+          const label = block.querySelector(`label[for^='artist_email_']`);
+          if (label) label.htmlFor = `artist_email_${idx}`;
+        }
+
+        // Spotify field
+        const spotifyGroup = block.querySelector(".platform-field[data-platform='spotify']") || block.querySelectorAll(".platform-field")[0];
+        if (spotifyGroup) {
+          const spotifyUrl = spotifyGroup.querySelector(".profile-url-input");
+          if (spotifyUrl) {
+            spotifyUrl.name = `spotify_${idx}`;
+            spotifyUrl.id = `spotify_${idx}`;
+          }
+          const spotifyHidden = spotifyGroup.querySelector("input[name^='no_spotify_']");
+          if (spotifyHidden) {
+            spotifyHidden.name = `no_spotify_${idx}`;
+            spotifyHidden.id = `no_spotify_${idx}`;
+          }
+          const spotifySwitch = spotifyGroup.querySelector("input[type='checkbox']");
+          if (spotifySwitch) {
+            spotifySwitch.name = `no_spotify_toggle_${idx}`;
+            spotifySwitch.id = `no_spotify_${idx}_switch`;
+          }
+          const spotifyToggleLabel = spotifyGroup.querySelector(".availability-switch");
+          if (spotifyToggleLabel) spotifyToggleLabel.htmlFor = `no_spotify_${idx}_switch`;
+        }
+
+        // Apple Music field
+        const appleGroup = block.querySelector(".platform-field[data-platform='apple']") || block.querySelectorAll(".platform-field")[1];
+        if (appleGroup) {
+          const appleUrl = appleGroup.querySelector(".profile-url-input");
+          if (appleUrl) {
+            appleUrl.name = `apple_music_${idx}`;
+            appleUrl.id = `apple_music_${idx}`;
+          }
+          const appleHidden = appleGroup.querySelector("input[name^='no_apple_']");
+          if (appleHidden) {
+            appleHidden.name = `no_apple_${idx}`;
+            appleHidden.id = `no_apple_${idx}`;
+          }
+          const appleSwitch = appleGroup.querySelector("input[type='checkbox']");
+          if (appleSwitch) {
+            appleSwitch.name = `no_apple_toggle_${idx}`;
+            appleSwitch.id = `no_apple_${idx}_switch`;
+          }
+          const appleToggleLabel = appleGroup.querySelector(".availability-switch");
+          if (appleToggleLabel) appleToggleLabel.htmlFor = `no_apple_${idx}_switch`;
+        }
       });
+
+      artistCount = blocks.length;
     }
 
     function toggleAvailability(button, fieldName, stateFieldName) {
-      const input = document.querySelector(`input[name="${fieldName}"]`);
+      const block = button.closest(".artist-block") || document;
+      const input = block.querySelector(`input[name="${fieldName}"]`);
       if (!input) return;
-      const group = input.closest(".form-group");
-      const stateField = document.querySelector(`input[name="${stateFieldName}"]`);
-      const isActive = button.classList.toggle("active");
-      button.setAttribute("aria-pressed", String(isActive));
-      if (stateField) stateField.value = isActive ? "1" : "0";
-      if (isActive) {
-        input.value = "";
-        input.disabled = true;
-        group?.classList.add("is-disabled");
-      } else {
-        input.disabled = false;
-        group?.classList.remove("is-disabled");
+      const group = input.closest(".platform-field") || input.closest(".form-group");
+      const checkbox = group?.querySelector("input[type='checkbox']");
+      const willBeActive = checkbox ? !checkbox.checked : !button.classList.contains("active");
+      if (checkbox) {
+        checkbox.checked = willBeActive;
+        checkbox.setAttribute("aria-checked", String(willBeActive));
+        checkbox.dispatchEvent(new Event("change", { bubbles: true }));
       }
     }
 
@@ -1911,10 +2947,12 @@
         const artistName = block.querySelector("input[name^='artist_name_']")?.value.trim() || "";
         const legalName = block.querySelector("input[name^='legal_name_']")?.value.trim() || "";
         const artistEmail = block.querySelector("input[name^='artist_email_']")?.value.trim() || "";
-        const spotifyInput = block.querySelector("input[name^='spotify_']");
-        const appleInput = block.querySelector("input[name^='apple_music_']");
-        const noSpotify = block.querySelector("input[name^='no_spotify_']")?.value === "1";
-        const noApple = block.querySelector("input[name^='no_apple_']")?.value === "1";
+        const spotifyInput = block.querySelector("input[data-platform-input='spotify']") || block.querySelector("input[name^='spotify_']");
+        const appleInput = block.querySelector("input[data-platform-input='apple']") || block.querySelector("input[name^='apple_music_']");
+        const spotifySwitch = block.querySelector("input[data-platform-toggle='spotify']") || block.querySelector("input[name^='no_spotify_toggle_']");
+        const appleSwitch = block.querySelector("input[data-platform-toggle='apple']") || block.querySelector("input[name^='no_apple_toggle_']");
+        const noSpotify = Boolean(spotifySwitch && spotifySwitch.checked) || block.querySelector("input[name^='no_spotify_']")?.value === "1";
+        const noApple = Boolean(appleSwitch && appleSwitch.checked) || block.querySelector("input[name^='no_apple_']")?.value === "1";
         return {
           index: idx + 1,
           artist_name: artistName,
@@ -2047,8 +3085,22 @@
       const form = document.getElementById("submissionForm");
       form.reset();
       document.querySelectorAll("#artistsContainer .artist-block").forEach((block, idx) => { if (idx > 0) block.remove(); });
-      document.querySelectorAll("#artistsContainer input[type='url']").forEach((input) => { input.disabled = false; });
-      document.querySelectorAll(".form-group.is-disabled").forEach((group) => group.classList.remove("is-disabled"));
+      document.querySelectorAll("#artistsContainer .profile-url-input").forEach((input) => { 
+        input.disabled = false; 
+        input.value = "";
+        delete input.dataset.artistId;
+        delete input.dataset.artistName;
+        input.classList.remove("has-selected-artist");
+      });
+      document.querySelectorAll("#artistsContainer .artist-selected").forEach((card) => card.remove());
+      document.querySelectorAll("#artistsContainer .platform-field").forEach((field) => {
+        field.classList.remove("is-unavailable", "menu-open", "dropdown-open");
+        field._closeArtistSearch?.();
+      });
+      document.querySelectorAll("#artistsContainer input[type='checkbox']").forEach((cb) => { 
+        cb.checked = false; 
+        cb.setAttribute("aria-checked", "false"); 
+      });
       document.querySelectorAll(".availability-toggle.active").forEach((button) => { button.classList.remove("active"); button.setAttribute("aria-pressed", "false"); });
       document.querySelectorAll("input[name^='no_spotify_'], input[name^='no_apple_']").forEach((stateField) => { stateField.value = "0"; });
       artistCount = 1;
@@ -2250,6 +3302,7 @@
       }
     });
 
+    document.querySelectorAll("#artistsContainer .artist-block").forEach(bindArtistControls);
     renumberArtists();
     selectReleasePlatform("google_drive");
   </script>

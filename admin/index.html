@@ -1,0 +1,3672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#05080f" />
+  <title>Sigma Label Admin</title>
+  <link rel="icon" type="image/png" href="../assets/branding/label-icon.png" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../assets/vendor/jspdf.umd.min.js"></script>
+  <script>
+    if (!window.jspdf) {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>');
+    }
+  </script>
+  <style>
+    @import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Syne:wght@600;700;800&display=swap");
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #04070c;
+      --bg-2: #07101a;
+      --panel: rgba(12, 20, 32, .82);
+      --panel-2: rgba(18, 30, 45, .86);
+      --line: rgba(143, 173, 204, .18);
+      --line-strong: rgba(0, 229, 255, .34);
+      --text: #f1f7ff;
+      --muted: #9fb0c4;
+      --cyan: #00e5ff;
+      --lime: #8dff66;
+      --red: #ff5d73;
+      --yellow: #ffd166;
+      --radius: 22px;
+      --shadow: 0 24px 80px rgba(0,0,0,.42);
+    }
+    body {
+      min-height: 100vh;
+      font-family: Manrope, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(860px 520px at 10% -12%, rgba(0,229,255,.16), transparent 62%),
+        radial-gradient(820px 560px at 96% 4%, rgba(141,255,102,.10), transparent 60%),
+        linear-gradient(180deg, var(--bg), var(--bg-2) 55%, var(--bg));
+      overflow-x: hidden;
+    }
+    body::before { content:""; position: fixed; inset: 0; z-index: -1; pointer-events:none; opacity:.18; background-image: linear-gradient(rgba(255,255,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.045) 1px, transparent 1px); background-size: 40px 40px; mask-image: radial-gradient(circle at center, black 30%, transparent 80%); -webkit-mask-image: radial-gradient(circle at center, black 30%, transparent 80%); }
+    button, input, textarea { font: inherit; }
+    button { cursor:pointer; border:0; }
+    a { color: inherit; }
+    .hidden { display:none !important; }
+
+    .login-view { min-height:100vh; display:grid; place-items:center; padding: 28px; }
+    .login-card { width:min(460px, 100%); border:1px solid var(--line); background:rgba(8,14,24,.86); border-radius:32px; padding:30px; box-shadow:var(--shadow); backdrop-filter: blur(18px); }
+    .brand { display:flex; align-items:center; gap:12px; margin-bottom:24px; font-family:Syne, sans-serif; font-weight:900; letter-spacing:.5px; text-transform:uppercase; }
+    .brand img { width:42px; height:42px; border-radius:14px; object-fit:cover; border:1px solid var(--line-strong); }
+    .login-card h1 { font-family:Syne, sans-serif; font-size: clamp(2rem, 8vw, 3.2rem); line-height:.9; letter-spacing:-.06em; text-transform:uppercase; }
+    .login-card p { color:var(--muted); margin: 12px 0 22px; }
+    .field { margin-bottom: 14px; }
+    .field label { display:block; font-weight:900; font-size:.82rem; margin-bottom:7px; color:#dbe8f4; }
+    input, textarea { width:100%; min-height:48px; border:1px solid var(--line); background:rgba(3,7,12,.66); color:var(--text); border-radius:15px; padding:12px 14px; outline:0; transition:border-color .18s ease, box-shadow .18s ease; }
+    textarea { min-height: 110px; resize: vertical; }
+    input:focus, textarea:focus { border-color:var(--line-strong); box-shadow: 0 0 0 4px rgba(0,229,255,.08); }
+    .primary-btn, .secondary-btn, .danger-btn, .ghost-btn { min-height:42px; border-radius:14px; padding:0 14px; font-weight:950; transition: transform .18s ease, opacity .18s ease; }
+    .primary-btn:hover, .secondary-btn:hover, .danger-btn:hover, .ghost-btn:hover { transform: translateY(-1px); }
+    .primary-btn { color:#061018; background:linear-gradient(135deg, var(--cyan), var(--lime)); }
+    .secondary-btn { color:var(--text); background:rgba(255,255,255,.07); border:1px solid var(--line); }
+    .danger-btn { color:#fff; background:rgba(255,93,115,.16); border:1px solid rgba(255,93,115,.34); }
+    .ghost-btn { color:var(--muted); background:transparent; }
+    .full { width:100%; min-height:52px; }
+    .status-line { margin-top: 14px; color: var(--muted); font-size:.85rem; min-height: 22px; }
+    .status-line.error { color: #ff9aad; }
+    .status-line.success { color: #baff9f; }
+
+    .app { min-height:100vh; }
+    .topbar { position:sticky; top:0; z-index:60; display:flex; align-items:center; justify-content:space-between; gap:16px; padding:16px 22px; border-bottom:1px solid var(--line); background:rgba(4,8,14,.78); backdrop-filter:blur(18px); }
+    .top-left { display:flex; align-items:center; gap:16px; min-width: 0; }
+    .top-left .brand { margin:0; }
+    .tabs { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .tab { color:var(--muted); background:rgba(255,255,255,.055); border:1px solid var(--line); border-radius:999px; padding:10px 13px; font-size:.82rem; font-weight:950; }
+    .tab.active { color:#061018; background:linear-gradient(135deg, var(--cyan), var(--lime)); border-color:transparent; }
+    .profile { position:relative; }
+    .profile-badge { display:flex; align-items:center; gap:10px; border:1px solid var(--line); background:rgba(255,255,255,.065); color:var(--text); border-radius:999px; padding:8px 11px; font-weight:900; }
+    .avatar { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; color:#061018; background:linear-gradient(135deg,var(--cyan),var(--lime)); font-weight:950; }
+    .profile-menu { position:absolute; right:0; top:calc(100% + 12px); width: 330px; padding:14px; border:1px solid var(--line); background:rgba(8,14,24,.98); border-radius:22px; box-shadow:var(--shadow); display:none; }
+    .profile.open .profile-menu { display:block; }
+    .profile-menu h3 { font-size:.96rem; margin-bottom:10px; }
+    .menu-actions { display:grid; gap:9px; margin-top:10px; }
+
+    .workspace { padding: 16px 16px 48px; }
+    .board-head { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin: 0 auto 16px; width:min(1880px, 100%); }
+    .board-title h1 { font-family:Syne, sans-serif; text-transform:uppercase; letter-spacing:-.055em; font-size: clamp(2rem, 5vw, 4rem); line-height:.92; }
+    .board-title p { color:var(--muted); margin-top:8px; }
+    .board-tools { display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .search { width:min(340px, 100%); }
+
+    .board {
+      position: relative;
+      width: min(1880px, 100%);
+      min-height: 440px;
+      margin: 0 auto;
+      border: 1px solid var(--line);
+      border-radius: 30px;
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.025));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.08);
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 22px;
+      padding: 22px;
+      align-items: start;
+      box-sizing: border-box;
+    }
+    .board::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(rgba(255,255,255,.09) 1px, transparent 1px);
+      background-size: 24px 24px;
+      opacity: .4;
+      pointer-events: none;
+      border-radius: inherit;
+    }
+    .empty {
+      grid-column: 1 / -1;
+      min-height: 400px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      color: var(--muted);
+      padding: 30px;
+    }
+    .empty strong { display:block; color:var(--text); font-size:1.05rem; }
+
+    .note {
+      position: relative;
+      width: 100%;
+      border: 1px solid var(--line);
+      background: rgba(10,18,30,.92);
+      backdrop-filter: blur(14px);
+      border-radius: 22px;
+      padding: 16px;
+      box-shadow: 0 18px 55px rgba(0,0,0,.28);
+      transition: border-color .2s ease, transform .2s ease, box-shadow .2s ease, opacity .2s ease;
+      touch-action: manipulation;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+    .note:hover {
+      border-color: var(--line-strong);
+      box-shadow: 0 24px 70px rgba(0,0,0,.36);
+    }
+    .note.dragging {
+      opacity: 0.45;
+      transform: scale(0.98);
+      border-color: var(--cyan);
+      box-shadow: 0 0 0 2px var(--cyan), 0 20px 50px rgba(0,229,255,.2);
+      z-index: 10;
+    }
+    .note.drag-target {
+      outline: 2px dashed var(--cyan);
+      outline-offset: 4px;
+      border-color: var(--cyan);
+      box-shadow: 0 0 20px rgba(0,229,255,.25);
+    }
+    .note.due-danger {
+      border-color: rgba(255,93,115,.55);
+      box-shadow: 0 0 0 1px rgba(255,93,115,.11), 0 18px 55px rgba(0,0,0,.28);
+    }
+    .note.due-danger .due-pill {
+      color: #fff;
+      background: rgba(255,93,115,.22);
+      border-color: rgba(255,93,115,.45);
+      font-weight: 950;
+    }
+    .note.due-warning {
+      border-color: rgba(255,209,102,.5);
+    }
+    .note.due-warning .due-pill {
+      color: #fff2c4;
+      background: rgba(255,209,102,.18);
+      border-color: rgba(255,209,102,.4);
+      font-weight: 950;
+    }
+    .note.due-healthy .due-pill {
+      color: #d6ffcb;
+      background: rgba(141,255,102,.14);
+      border-color: rgba(141,255,102,.3);
+    }
+    .note.released-note { opacity: .9; }
+    .note-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .note-header-content { flex: 1; min-width: 0; }
+    .drag-handle {
+      cursor: grab;
+      color: var(--muted);
+      padding: 6px;
+      border-radius: 8px;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color .15s ease, background .15s ease;
+      flex-shrink: 0;
+    }
+    .drag-handle:hover {
+      color: var(--cyan);
+      background: rgba(0, 229, 255, .1);
+    }
+    .drag-handle:active {
+      cursor: grabbing;
+    }
+    .note h2 {
+      font-family: Syne, sans-serif;
+      font-size: 1.12rem;
+      line-height: 1.15;
+      letter-spacing: -.035em;
+      text-transform: uppercase;
+      word-break: break-word;
+    }
+    .release-artist {
+      margin-top: 5px;
+      color: var(--cyan);
+      font-size: .88rem;
+      font-weight: 900;
+      letter-spacing: .02em;
+      word-break: break-word;
+    }
+    .meta-grid { display:grid; gap:8px; margin: 12px 0; }
+    .meta { border:1px solid rgba(255,255,255,.08); background:rgba(255,255,255,.045); border-radius:14px; padding:9px 10px; }
+    .meta small { display:block; color:var(--muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.65px; font-weight:950; margin-bottom:2px; }
+    .meta span, .meta a { color:#eaf5ff; overflow-wrap:anywhere; font-size:.84rem; }
+    .artists { display:grid; gap:7px; margin: 0 0 10px; }
+    .artists-label { color:var(--muted); font-size:.68rem; text-transform:uppercase; letter-spacing:.65px; font-weight:950; margin: 12px 0 8px; }
+    .artist-row {
+      border-radius: 14px;
+      background: rgba(0,229,255,.055);
+      border: 1px solid rgba(0,229,255,.12);
+      padding: 10px 12px;
+      font-size: .82rem;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .artist-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 2px; }
+    .artist-row strong { display:block; font-size:.9rem; }
+    .artist-field-row { display: block; width: 100%; margin-top: 2px; }
+    .artist-legal, .artist-email {
+      display: inline-block;
+      color: var(--muted);
+      font-size: .76rem;
+      word-break: break-word;
+    }
+    .copyable-text {
+      cursor: pointer;
+      border-radius: 6px;
+      padding: 1px 4px;
+      margin: -1px -4px;
+      display: inline-block;
+      transition: color .16s ease, background .16s ease, box-shadow .16s ease;
+    }
+    .copyable-text:hover {
+      color: #00e5ff !important;
+      background: rgba(0,229,255,.14);
+      box-shadow: 0 0 10px rgba(0,229,255,.25);
+    }
+    .copyable-text:active {
+      transform: scale(0.98);
+    }
+    .copy-toast {
+      position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(12px);
+      z-index:400; padding:12px 18px; border-radius:999px; border:1px solid rgba(0,229,255,.28);
+      background:rgba(8,14,24,.96); color:#eaf5ff; font-size:.84rem; font-weight:900;
+      box-shadow:0 18px 40px rgba(0,0,0,.35); opacity:0; pointer-events:none; transition: opacity .2s ease, transform .2s ease;
+    }
+    .copy-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+    .platform-icons { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+    .platform-link { display:grid; place-items:center; width:30px; height:30px; border-radius:10px; border:1px solid var(--line); background:rgba(255,255,255,.06); transition: transform .18s ease, border-color .18s ease, background .18s ease; }
+    .platform-link:hover { transform: translateY(-1px); border-color:var(--line-strong); background:rgba(255,255,255,.12); }
+    .platform-link svg { width:16px; height:16px; display:block; }
+    .platform-link.platform-spotify { color:#1ed760; }
+    .platform-link.platform-apple { color:#fc3c44; }
+    .pill-row { display:flex; gap:7px; flex-wrap:wrap; margin: 10px 0; }
+    .pill { display:inline-flex; align-items:center; min-height:28px; border-radius:999px; padding:0 10px; border:1px solid var(--line); color:#dbe8f5; background:rgba(255,255,255,.052); font-size:.72rem; font-weight:950; }
+    .due-pill { border:1px solid var(--line); }
+    .note-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+    .mini-btn { min-height:36px; border-radius:12px; padding:0 11px; font-size:.78rem; font-weight:950; }
+    .cover-preview { width:100%; aspect-ratio: 16 / 9; object-fit:cover; border-radius:16px; border:1px solid var(--line); margin-top:10px; background:#08101a; }
+    .cover-tools { display:grid; gap:8px; margin-top:10px; }
+    .cover-tools input[type=file] { padding:10px; min-height:auto; }
+
+    /* Contract Box & Action Buttons */
+    .contract-box {
+      margin: 10px 0 6px;
+      padding: 10px 12px;
+      background: rgba(0, 229, 255, 0.045);
+      border: 1px solid rgba(0, 229, 255, 0.18);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .contract-info {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      min-width: 0;
+    }
+    .contract-icon-badge {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.32);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+    .contract-text-wrap {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .contract-title {
+      font-size: 0.79rem;
+      font-weight: 900;
+      color: #eaf5ff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .contract-subtitle {
+      font-size: 0.7rem;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .contract-actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+    .contract-edit-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--line);
+      color: #dcefff;
+      border-radius: 10px;
+      padding: 6px 11px;
+      font-size: 0.75rem;
+      font-weight: 950;
+      cursor: pointer;
+      transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease;
+      flex-shrink: 0;
+    }
+    .contract-edit-btn:hover {
+      background: rgba(0, 229, 255, 0.12);
+      border-color: rgba(0, 229, 255, 0.35);
+      color: var(--cyan);
+      transform: translateY(-1px);
+    }
+    .contract-download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.36);
+      color: var(--cyan);
+      border-radius: 10px;
+      padding: 6px 11px;
+      font-size: 0.75rem;
+      font-weight: 950;
+      cursor: pointer;
+      transition: transform .16s ease, background .16s ease, border-color .16s ease, color .16s ease;
+      flex-shrink: 0;
+    }
+    .contract-download-btn:hover {
+      background: rgba(0, 229, 255, 0.22);
+      border-color: var(--cyan);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .contract-custom-badge {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(141, 255, 102, 0.15);
+      color: var(--lime);
+      border: 1px solid rgba(141, 255, 102, 0.3);
+      vertical-align: middle;
+    }
+    .btn-with-icon {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-with-icon svg {
+      flex-shrink: 0;
+    }
+
+    /* A&R Scout Badge & Card */
+    .pill.ar-pill {
+      background: linear-gradient(135deg, rgba(255, 140, 50, 0.22), rgba(255, 82, 82, 0.16));
+      color: #ffaa5b;
+      border: 1px solid rgba(255, 140, 50, 0.45);
+      font-weight: 950;
+      letter-spacing: .05em;
+    }
+    /* Amethyst Badge & Card */
+    .pill.amethyst-pill {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.22), rgba(139, 92, 246, 0.16));
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.45);
+      font-weight: 950;
+      letter-spacing: .05em;
+    }
+    .amethyst-source-card {
+      margin-top: 12px;
+      background: linear-gradient(145deg, rgba(168, 85, 247, 0.08), rgba(8, 14, 24, 0.88));
+      border: 1px solid rgba(168, 85, 247, 0.28);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .amethyst-source-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .amethyst-source-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .68rem;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #c084fc;
+    }
+    .amethyst-source-tag {
+      font-size: .68rem;
+      font-weight: 800;
+      color: #e9d5ff;
+      background: rgba(168, 85, 247, 0.16);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    /* Amethyst Release Box - purple outline & subtle purple glow */
+    .note.amethyst-card {
+      border: 1.5px solid rgba(168, 85, 247, 0.75);
+      box-shadow: 0 0 16px rgba(168, 85, 247, 0.2), 0 18px 55px rgba(0,0,0,.28);
+    }
+    .note.amethyst-card:hover {
+      border-color: rgba(192, 132, 252, 0.95);
+      box-shadow: 0 0 24px rgba(168, 85, 247, 0.32), 0 24px 70px rgba(0,0,0,.36);
+    }
+    .note.amethyst-card.due-danger {
+      border-color: rgba(216, 110, 255, 0.85);
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.25), 0 0 0 1px rgba(255, 93, 115, 0.4), 0 18px 55px rgba(0,0,0,.28);
+    }
+    .note.amethyst-card.due-warning {
+      border-color: rgba(192, 132, 252, 0.85);
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.22), 0 0 0 1px rgba(255, 209, 102, 0.35), 0 18px 55px rgba(0,0,0,.28);
+    }
+    .filter-option[data-filter="amethyst-only"].active {
+      background: rgba(168, 85, 247, 0.16);
+      border-color: rgba(168, 85, 247, 0.4);
+      color: #c084fc;
+    }
+    .filter-option[data-filter="amethyst-only"].active .filter-option-check {
+      color: #c084fc;
+    }
+    .ar-scout-card {
+      margin-top: 12px;
+      background: linear-gradient(145deg, rgba(255, 140, 50, 0.08), rgba(8, 14, 24, 0.88));
+      border: 1px solid rgba(255, 140, 50, 0.28);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .ar-scout-card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .ar-scout-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .68rem;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #ffaa5b;
+    }
+    .ar-source-tag {
+      font-size: .68rem;
+      font-weight: 800;
+      color: #dce7f2;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    .ar-scout-body {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .ar-scout-person {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .ar-scout-person strong {
+      font-size: .84rem;
+      color: #fff;
+      font-weight: 800;
+    }
+    .ar-scout-email {
+      font-size: .75rem;
+      color: var(--muted);
+      font-family: monospace;
+    }
+    .ar-trending-link-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 5px;
+      padding-top: 7px;
+      border-top: 1px dashed rgba(255, 140, 50, 0.22);
+    }
+    .ar-trending-flame {
+      font-size: .88rem;
+    }
+    .ar-trending-url {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: .74rem;
+      font-weight: 850;
+      color: #ffaa5b;
+      text-decoration: none;
+      background: rgba(255, 140, 50, 0.12);
+      border: 1px solid rgba(255, 140, 50, 0.3);
+      padding: 3px 9px;
+      border-radius: 8px;
+      transition: all .16s ease;
+    }
+    .ar-trending-url:hover {
+      background: rgba(255, 140, 50, 0.24);
+      color: #fff;
+      border-color: #ffaa5b;
+      transform: translateY(-1px);
+    }
+
+    /* Filter & Sort Dropdown */
+    .filter-sort-wrap { position: relative; }
+    .filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      background: rgba(255,255,255,.07);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      min-height: 42px;
+      padding: 0 14px;
+      font-weight: 900;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+      cursor: pointer;
+    }
+    .filter-btn:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: rgba(255,255,255,.11);
+    }
+    .filter-btn.active-filter {
+      border-color: var(--cyan);
+      background: rgba(0, 229, 255, .12);
+      color: #fff;
+      box-shadow: 0 0 12px rgba(0,229,255,.2);
+    }
+    .filter-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 6px;
+      border-radius: 999px;
+      background: var(--cyan);
+      color: #061018;
+      font-size: .68rem;
+      font-weight: 950;
+      line-height: 1;
+    }
+    .filter-menu {
+      position: absolute;
+      right: 0;
+      top: calc(100% + 10px);
+      width: 310px;
+      background: rgba(8, 14, 24, .97);
+      backdrop-filter: blur(18px);
+      border: 1px solid var(--line-strong);
+      border-radius: 20px;
+      padding: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.6);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .filter-menu.hidden { display: none !important; }
+    .filter-section-title {
+      color: var(--muted);
+      font-size: .7rem;
+      font-weight: 950;
+      text-transform: uppercase;
+      letter-spacing: .7px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .filter-options-grid {
+      display: grid;
+      gap: 4px;
+    }
+    .filter-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      text-align: left;
+      padding: 8px 12px;
+      border-radius: 10px;
+      background: transparent;
+      border: 1px solid transparent;
+      color: #dbe8f5;
+      font-size: .84rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .filter-option:hover {
+      background: rgba(255,255,255,.07);
+      color: #fff;
+    }
+    .filter-option.active {
+      background: rgba(0,229,255,.12);
+      border-color: rgba(0,229,255,.3);
+      color: var(--cyan);
+      font-weight: 900;
+    }
+    .filter-option-check {
+      opacity: 0;
+      font-size: .9rem;
+      font-weight: 950;
+      color: var(--cyan);
+    }
+    .filter-option.active .filter-option-check {
+      opacity: 1;
+    }
+    .filter-menu-divider {
+      height: 1px;
+      background: var(--line);
+      margin: 2px 0;
+    }
+    .filter-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .filter-reset-btn {
+      width: 100%;
+      min-height: 34px;
+      border-radius: 10px;
+      font-size: .78rem;
+      font-weight: 900;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s ease;
+    }
+    .filter-reset-btn:hover {
+      background: rgba(255,93,115,.15);
+      border-color: rgba(255,93,115,.3);
+      color: #ff8093;
+    }
+
+    .chat-modal, .confirm-modal, .create-modal, .contract-modal { position:fixed; inset:0; z-index:200; display:grid; place-items:center; background:rgba(0,0,0,.62); backdrop-filter:blur(7px); padding:24px; }
+    .chat-modal.hidden, .confirm-modal.hidden, .create-modal.hidden, .contract-modal.hidden { display:none; }
+    .modal-card { width:min(620px, 100%); max-height:86vh; overflow:hidden; border:1px solid var(--line); background:rgba(8,14,24,.98); border-radius:28px; box-shadow:var(--shadow); display:flex; flex-direction:column; }
+    .modal-head { padding:18px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; align-items:center; }
+    .modal-head h2 { font-family:Syne, sans-serif; text-transform:uppercase; letter-spacing:-.035em; }
+    .modal-body { padding:18px; overflow:auto; }
+    .chat-card { width:min(1040px, 100%); max-height:min(88vh, 920px); padding:0; background:#11161d; border-color:rgba(255,255,255,.08); }
+    .chat-shell { display:block; min-height: min(88vh, 920px); }
+    .chat-sidebar { display:none; }
+    .chat-sidebar-title { display:none; }
+    .chat-channel { display:none; }
+    .chat-channel .hash { display:none; }
+    .chat-sidebar-note { display:none; }
+    .chat-main { display:flex; flex-direction:column; min-width:0; background:#313338; }
+    .chat-header { padding:14px 18px; background:#313338; border-bottom:1px solid rgba(255,255,255,.06); }
+    .chat-header-meta { min-width:0; }
+    .chat-title-row { display:flex; align-items:center; gap:10px; min-width:0; }
+    .chat-header-title { font-size:1rem; font-weight:900; color:#f2f3f5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .chat-header-hash { color:#8e9297; font-size:1.2rem; font-weight:900; }
+    .chat-header-sub { color:#a3a6aa; font-size:.82rem; margin-top:4px; }
+    .chat-body { flex:1; padding:10px 0 8px; overflow:auto; background:#313338; }
+    .messages { display:flex; flex-direction:column; gap:0; min-height:100%; overflow:auto; }
+    .message-empty, .message-loading { margin: 8px 18px 0; border:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,.035); border-radius:16px; padding:14px; color:#b8c3cf; }
+    .chat-message { display:grid; grid-template-columns: 44px 1fr; gap:12px; padding:8px 18px 10px; transition:background .16s ease; align-items:start; }
+    .chat-message:hover { background:rgba(255,255,255,.03); }
+    .chat-message.own { background:rgba(255,255,255,.015); }
+    .message-avatar { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; font-weight:950; color:#0b1016; background:linear-gradient(135deg, var(--cyan), var(--lime)); box-shadow:0 8px 20px rgba(0,0,0,.16); }
+    .message-content { min-width:0; }
+    .message-meta { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+    .message-author { color:#fff; font-weight:900; font-size:.95rem; }
+    .message-time { color:#a3a6aa; font-size:.75rem; }
+    .message-text { margin-top:2px; color:#dbdee1; white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.4; }
+    .chat-compose-wrap { padding:10px 18px 18px; background:#313338; }
+    .chat-compose { border-radius:16px; background:#383a40; border:1px solid rgba(255,255,255,.06); display:flex; align-items:flex-end; gap:12px; padding:12px; }
+    .chat-compose textarea { min-height:56px; max-height:170px; resize:vertical; border:0; background:transparent; border-radius:0; box-shadow:none; padding:4px 0; color:#f2f3f5; }
+    .chat-compose textarea:focus { border:0; box-shadow:none; }
+    .chat-compose textarea::placeholder { color:#8e9297; }
+    .chat-send { min-width:140px; min-height:48px; border-radius:12px; align-self:stretch; }
+    .chat-status-row { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px; }
+    .chat-helper { color:#8e9297; font-size:.78rem; }
+    .confirm-modal .modal-card { max-width:460px; }
+    .create-modal .modal-card, .contract-modal .modal-card { width:min(860px, 100%); max-height:92vh; }
+    .create-modal .modal-body, .contract-modal .modal-body { padding: 0 22px 22px; }
+    .create-modal .modal-head, .contract-modal .modal-head { padding: 20px 22px; background: linear-gradient(135deg, rgba(0,229,255,.08), rgba(141,255,102,.06)); border-bottom: 1px solid var(--line); }
+    .create-modal .modal-head h2, .contract-modal .modal-head h2 { font-size: 1.15rem; }
+    .create-modal-sub { color: var(--muted); font-size: .84rem; margin-top: 4px; }
+    .contract-split-total-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      margin: 16px 0;
+    }
+    .contract-split-total-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 999px;
+      font-size: .8rem;
+      font-weight: 950;
+    }
+    .split-valid { background: rgba(141,255,102,.15); color: var(--lime); border: 1px solid rgba(141,255,102,.3); }
+    .split-warning { background: rgba(255,193,7,.15); color: #ffc107; border: 1px solid rgba(255,193,7,.3); }
+    .create-scroll { overflow: auto; max-height: calc(92vh - 190px); padding-right: 4px; }
+    .form-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:12px; }
+    .form-grid .wide { grid-column: 1 / -1; }
+    .form-stage { display:flex; align-items:center; gap:12px; margin: 22px 0 14px; }
+    .form-stage:first-child { margin-top: 8px; }
+    .form-stage-badge { width: 32px; height: 32px; display:grid; place-items:center; border-radius: 11px; background: linear-gradient(135deg, rgba(0,229,255,.18), rgba(141,255,102,.14)); border: 1px solid rgba(0,229,255,.28); color: var(--cyan); font-weight: 950; font-size: .78rem; flex-shrink: 0; }
+    .form-stage h3 { font-family: Syne, sans-serif; font-size: .92rem; text-transform: uppercase; letter-spacing: .04em; }
+    .form-stage p { color: var(--muted); font-size: .78rem; margin-left: auto; }
+    .create-divider { border: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--line), transparent); margin: 8px 0 4px; }
+    .create-artist-block { border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.028)); border-radius: 20px; padding: 16px; margin-bottom: 12px; transition: border-color .2s ease, box-shadow .2s ease; }
+    .create-artist-block:focus-within { border-color: var(--line-strong); box-shadow: 0 0 0 1px rgba(0,229,255,.12), 0 16px 40px rgba(0,0,0,.18); }
+    .create-artist-head { display:flex; align-items:center; justify-content:space-between; gap: 12px; margin-bottom: 12px; }
+    .create-artist-index { font-weight: 950; font-size: .88rem; color: #dcefff; letter-spacing: .02em; }
+    .create-remove-artist { width: 32px; height: 32px; display:grid; place-items:center; color: var(--muted); border: 1px solid var(--line); background: rgba(255,255,255,.05); border-radius: 11px; font-size: 1.1rem; transition: transform .18s ease, background .18s ease, color .18s ease; }
+    .create-remove-artist:hover { color: #fff; background: rgba(255,93,115,.18); border-color: rgba(255,93,115,.35); transform: rotate(8deg); }
+    .link-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .field-head { display:flex; align-items:center; justify-content:space-between; gap: 10px; margin-bottom: 7px; }
+    .field-head label { margin-bottom: 0 !important; }
+    .link-toggle { color: #cde8f6; background: rgba(255,255,255,.055); border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; font-size: .68rem; font-weight: 950; white-space: nowrap; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .link-toggle.active { color: #061018; background: var(--lime); border-color: transparent; }
+    .link-field.is-disabled { opacity: .55; }
+    .link-field.is-disabled input { pointer-events: none; }
+    .platform-label { display:inline-flex; align-items:center; gap: 6px; }
+    .platform-label.spotify { color: #1ed760; }
+    .platform-label.apple { color: #fc3c44; }
+    .add-artist-btn { width: 100%; min-height: 46px; margin-top: 4px; color: var(--cyan); background: rgba(0,229,255,.06); border: 1px dashed rgba(0,229,255,.32); border-radius: 16px; font-weight: 950; font-size: .84rem; transition: transform .18s ease, background .18s ease, border-color .18s ease; }
+    .add-artist-btn:hover { transform: translateY(-1px); background: rgba(0,229,255,.11); border-color: rgba(0,229,255,.5); }
+    .create-footer { position: sticky; bottom: 0; margin-top: 18px; padding-top: 16px; background: linear-gradient(180deg, rgba(8,14,24,0), rgba(8,14,24,.98) 24%); border-top: 1px solid rgba(255,255,255,.06); }
+    .confirm-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; }
+
+    @media (max-width: 900px) {
+      .topbar, .board-head { align-items:stretch; flex-direction:column; }
+      .tabs { overflow-x:auto; flex-wrap:nowrap; padding-bottom:3px; }
+      .profile-menu { right:auto; left:0; width:min(330px, calc(100vw - 48px)); }
+      .workspace { padding:16px 16px 48px; }
+      .board { min-height: 420px; }
+      .note { width: min(330px, calc(100vw - 50px)); }
+      .chat-card { width:min(100%, 100%); }
+      .chat-compose { flex-direction:column; align-items:stretch; }
+      .chat-send { min-width:0; }
+      .chat-status-row { align-items:flex-start; flex-direction:column; }
+      .form-grid { grid-template-columns: 1fr; }
+      .form-grid .wide { grid-column:auto; }
+      .link-grid { grid-template-columns: 1fr; }
+      .create-scroll { max-height: calc(92vh - 170px); }
+    }
+  </style>
+</head>
+<body>
+  <main id="loginView" class="login-view">
+    <form class="login-card" id="loginForm">
+      <div class="brand"><img src="../assets/branding/label-icon.png" alt="" onerror="this.style.display='none'" /> Sigma Label LLC</div>
+      <h1>Admin Login</h1>
+      <p>Sign in with your Sigma Label admin credentials.</p>
+      <div class="field"><label>Email</label><input type="email" id="loginEmail" autocomplete="username" placeholder="Your admin email" required /></div>
+      <div class="field"><label>Password</label><input type="password" id="loginPassword" autocomplete="current-password" placeholder="Password" required /></div>
+      <button class="primary-btn full" type="submit">Log in</button>
+      <div class="status-line" id="loginStatus"></div>
+    </form>
+  </main>
+
+  <main id="appView" class="app hidden">
+    <header class="topbar">
+      <div class="top-left">
+        <div class="brand"><img src="../assets/branding/label-icon.png" alt="" onerror="this.style.display='none'" /> Sigma Admin</div>
+        <nav class="tabs" id="tabs">
+          <button class="tab active" data-view="submissions">Submissions</button>
+          <button class="tab" data-view="ar_submissions">A&amp;R Submissions</button>
+          <button class="tab" data-view="amethyst">Amethyst</button>
+          <button class="tab" data-view="releases">Releases</button>
+          <button class="tab" data-view="released">Released</button>
+          <button class="tab" data-view="trash">Trash</button>
+        </nav>
+      </div>
+      <div class="profile" id="profile">
+        <button class="profile-badge" id="profileToggle"><span class="avatar" id="avatar">S</span><span id="profileEmail">admin</span> ▾</button>
+        <div class="profile-menu">
+          <h3>Admin Profile</h3>
+          <div class="field"><label>Current password</label><input type="password" id="currentPassword" autocomplete="current-password" placeholder="Current password" /></div>
+          <div class="field"><label>New password</label><input type="password" id="newPassword" autocomplete="new-password" placeholder="At least 8 characters" /></div>
+          <div class="field"><label>Confirm new password</label><input type="password" id="confirmPassword" autocomplete="new-password" placeholder="Repeat new password" /></div>
+          <button class="primary-btn full" id="changePasswordBtn" type="button">Change password</button>
+          <div class="menu-actions"><button class="secondary-btn" id="logoutBtn" type="button">Log out</button></div>
+          <div class="status-line" id="profileStatus"></div>
+        </div>
+      </div>
+    </header>
+
+    <section class="workspace">
+      <div class="board-head">
+        <div class="board-title"><h1 id="boardTitle">Submissions</h1><p id="boardSubtitle">Pending songs waiting for an admin decision.</p></div>
+        <div class="board-tools">
+          <input class="search" type="search" id="searchInput" placeholder="Search release, artist, email..." />
+          <div class="filter-sort-wrap" id="filterSortWrap">
+            <button class="filter-btn" id="filterSortBtn" type="button" aria-haspopup="true" aria-expanded="false" title="Sort and filter releases">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+              <span id="filterSortBtnLabel">Sort & Filter</span>
+              <span class="filter-badge hidden" id="filterBadge"></span>
+              <span style="font-size:.7rem; opacity:.7; margin-left:2px;">▾</span>
+            </button>
+            <div class="filter-menu hidden" id="filterSortMenu">
+              <div>
+                <div class="filter-section-title"><span>Sort By</span></div>
+                <div class="filter-options-grid" id="sortOptions">
+                  <button type="button" class="filter-option active" data-sort="default">
+                    <span>Default / Newest</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-sort="overdue-first">
+                    <span>Overdue First</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-sort="closest-date">
+                    <span>Closest Preferred Date</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-sort="furthest-date">
+                    <span>Furthest Preferred Date</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-sort="oldest-added">
+                    <span>Oldest Added</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-sort="title-asc">
+                    <span>Release Title (A - Z)</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-sort="artist-asc">
+                    <span>Artist Name (A - Z)</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                </div>
+              </div>
+              <div class="filter-menu-divider"></div>
+              <div>
+                <div class="filter-section-title"><span>Filter Releases</span></div>
+                <div class="filter-options-grid" id="filterOptions">
+                  <button type="button" class="filter-option active" data-filter="all">
+                    <span>All Releases</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-filter="overdue">
+                    <span>Overdue Only</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-filter="due-soon">
+                    <span>Due Soon (≤ 7 days)</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-filter="needs-cover">
+                    <span>Needs Cover Art</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-filter="has-cover">
+                    <span>Has Cover Art</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-filter="amethyst-only">
+                    <span>Amethyst Only</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                  <button type="button" class="filter-option" data-filter="exclude-amethyst">
+                    <span>Exclude Amethyst</span>
+                    <span class="filter-option-check">✓</span>
+                  </button>
+                </div>
+              </div>
+              <div class="filter-menu-divider"></div>
+              <div class="filter-actions">
+                <button type="button" class="filter-reset-btn" id="filterResetBtn">Reset to Default</button>
+              </div>
+            </div>
+          </div>
+          <button class="primary-btn" id="newReleaseBtn" type="button">+ New Release</button>
+          <button class="secondary-btn" id="refreshBtn" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="board" id="board"><div class="empty"><div><strong>Loading admin board...</strong><span>If this stays here, hard-refresh the page or check the browser console.</span></div></div></div>
+    </section>
+  </main>
+
+  <div class="chat-modal hidden" id="chatModal">
+    <div class="modal-card chat-card">
+      <div class="chat-shell">
+        <section class="chat-main">
+          <div class="modal-head chat-header">
+            <div class="chat-header-meta">
+              <div class="chat-title-row"><span class="chat-header-hash">#</span><div class="chat-header-title" id="chatTitle">Team Chat</div></div>
+              <div class="chat-header-sub" id="chatSubtitle">Private discussion between Sigma admins.</div>
+            </div>
+            <button class="ghost-btn" id="closeChatBtn" type="button">Close</button>
+          </div>
+          <div class="modal-body chat-body">
+            <div class="messages" id="messages"></div>
+          </div>
+          <div class="chat-compose-wrap">
+            <div class="chat-compose">
+              <textarea id="chatInput" placeholder="Message the admin team..."></textarea>
+              <button class="primary-btn chat-send" id="sendMessageBtn" type="button">Send</button>
+            </div>
+            <div class="chat-status-row">
+              <div class="chat-helper">Shift+Enter for a new line.</div>
+              <div class="status-line" id="chatStatus"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <div class="create-modal hidden" id="createReleaseModal">
+    <form class="modal-card" id="createReleaseForm">
+      <div class="modal-head">
+        <div>
+          <h2>New Release</h2>
+          <p class="create-modal-sub">Add a release directly to the Releases board with full artist details.</p>
+        </div>
+        <button class="ghost-btn" id="closeCreateReleaseBtn" type="button">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="create-scroll">
+          <div class="form-stage">
+            <span class="form-stage-badge">1</span>
+            <h3>Artists</h3>
+            <p>Add every credited artist on the release</p>
+          </div>
+          <div id="manualArtistsContainer"></div>
+          <button class="add-artist-btn" id="addManualArtistBtn" type="button">+ Add another artist</button>
+
+          <hr class="create-divider" />
+
+          <div class="form-stage">
+            <span class="form-stage-badge">2</span>
+            <h3>Release</h3>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Release title *</label><input type="text" id="manualReleaseTitle" placeholder="e.g. SIGMA FUNK" required /></div>
+            <div class="field"><label>Preferred release date</label><input type="date" id="manualReleaseDate" /></div>
+            <div class="field"><label>Source platform</label><input type="text" id="manualReleasePlatform" placeholder="TikTok / Email / Instagram / Other" /></div>
+            <div class="field wide"><label>Release link</label><input type="url" id="manualReleaseLink" placeholder="https://drive.google.com/..." /></div>
+          </div>
+
+          <hr class="create-divider" />
+
+          <div class="form-stage">
+            <span class="form-stage-badge">3</span>
+            <h3>Notes</h3>
+          </div>
+          <div class="form-grid">
+            <div class="field wide"><label>Admin notes</label><textarea id="manualNotes" placeholder="Where did this come from? TikTok DM, email, private contact, etc."></textarea></div>
+          </div>
+        </div>
+
+        <div class="create-footer">
+          <div class="confirm-actions">
+            <button class="secondary-btn" id="cancelCreateReleaseBtn" type="button">Cancel</button>
+            <button class="primary-btn" type="submit">Create on Releases Board</button>
+          </div>
+          <div class="status-line" id="createReleaseStatus"></div>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="contract-modal hidden" id="contractModal">
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <h2>Edit Distribution Agreement</h2>
+          <p class="create-modal-sub" id="contractModalSub">Customize splits, artists, and labels for this contract.</p>
+        </div>
+        <button class="ghost-btn" id="closeContractModal" type="button">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="create-scroll">
+          <!-- Stage 1: Agreement Info -->
+          <div class="form-stage">
+            <span class="form-stage-badge">1</span>
+            <div>
+              <h3>Agreement Details</h3>
+              <p>Song title and key contract dates</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="field wide">
+              <label for="contractSongTitle">Song Title *</label>
+              <input type="text" id="contractSongTitle" placeholder="e.g. MONTAGEM JANELAXP" />
+            </div>
+            <div class="field">
+              <label for="contractEffectiveDate">Effective Date</label>
+              <input type="date" id="contractEffectiveDate" />
+            </div>
+            <div class="field">
+              <label for="contractReleaseDate">Release Date</label>
+              <input type="date" id="contractReleaseDate" />
+            </div>
+          </div>
+
+          <hr class="create-divider" style="margin-top: 18px;" />
+
+          <!-- Stage 2: Labels & Co-Labels -->
+          <div class="form-stage">
+            <span class="form-stage-badge">2</span>
+            <div>
+              <h3>Labels & Entities</h3>
+              <p>Sigma Label LLC and any co-labels or management entities with their splits</p>
+            </div>
+          </div>
+          <div id="contractLabelsContainer"></div>
+          <button class="add-artist-btn" id="addContractLabelBtn" type="button">+ Add Label / Entity</button>
+
+          <hr class="create-divider" style="margin-top: 18px;" />
+
+          <!-- Stage 3: Artists & Splits -->
+          <div class="form-stage">
+            <span class="form-stage-badge">3</span>
+            <div>
+              <h3>Artists & Revenue Splits</h3>
+              <p>Stage names, legal names, and individual split percentages</p>
+            </div>
+          </div>
+          <div id="contractArtistsContainer"></div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:4px;">
+            <button class="add-artist-btn" id="addContractArtistBtn" style="flex:1;" type="button">+ Add Artist to Contract</button>
+            <button class="secondary-btn" id="autoSplitBtn" style="min-height:46px; border-radius:16px; padding:0 16px; font-size:.84rem; font-weight:950;" type="button" title="Distribute remaining split percentage evenly among artists">Auto-Split Remaining %</button>
+          </div>
+
+          <!-- Total Calculation Bar -->
+          <div class="contract-split-total-bar">
+            <div>
+              <strong style="font-size:.9rem; color:#f0f8ff;">Total Revenue Split</strong>
+              <div id="contractSplitBreakdown" style="font-size:.76rem; color:var(--muted); margin-top:2px;">Labels: 40% | Artists: 60%</div>
+            </div>
+            <div class="contract-split-total-pill split-valid" id="contractTotalPill">100% Allocated</div>
+          </div>
+        </div>
+
+        <div class="create-footer">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button class="ghost-btn" id="resetContractBtn" type="button" title="Reset to default 40% label / equal artist splits">Reset to Default</button>
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+              <button class="secondary-btn" id="saveContractBtn" type="button">Save Changes</button>
+              <button class="primary-btn btn-with-icon" id="saveAndDownloadContractBtn" type="button">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span>Save & Download PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="confirm-modal hidden" id="confirmModal">
+    <div class="modal-card">
+      <div class="modal-head"><h2 id="confirmTitle">Confirm</h2><button class="ghost-btn" id="cancelConfirmTop" type="button">Close</button></div>
+      <div class="modal-body">
+        <p id="confirmText" style="color:var(--muted);"></p>
+        <div class="confirm-actions"><button class="secondary-btn" id="cancelConfirm" type="button">Cancel</button><button class="primary-btn" id="confirmAction" type="button">Confirm</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="copy-toast" id="copyToast" role="status" aria-live="polite">Text copied to clipboard</div>
+
+  <script>
+    const SUPABASE_URL = "https://skiicalwfmtjmoblalrq.supabase.co";
+    const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ZH9uyIpwJ08wdlXMoCAEWA_AymPbP8U";
+
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+    const loginView = document.getElementById("loginView");
+    const appView = document.getElementById("appView");
+    const loginForm = document.getElementById("loginForm");
+    const loginStatus = document.getElementById("loginStatus");
+    const board = document.getElementById("board");
+    const tabs = document.getElementById("tabs");
+    const boardTitle = document.getElementById("boardTitle");
+    const boardSubtitle = document.getElementById("boardSubtitle");
+    const searchInput = document.getElementById("searchInput");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const newReleaseBtn = document.getElementById("newReleaseBtn");
+    const filterSortWrap = document.getElementById("filterSortWrap");
+    const filterSortBtn = document.getElementById("filterSortBtn");
+    const filterSortBtnLabel = document.getElementById("filterSortBtnLabel");
+    const filterBadge = document.getElementById("filterBadge");
+    const filterSortMenu = document.getElementById("filterSortMenu");
+    const sortOptionsContainer = document.getElementById("sortOptions");
+    const filterOptionsContainer = document.getElementById("filterOptions");
+    const filterResetBtn = document.getElementById("filterResetBtn");
+    const profile = document.getElementById("profile");
+    const profileToggle = document.getElementById("profileToggle");
+    const profileEmail = document.getElementById("profileEmail");
+    const avatar = document.getElementById("avatar");
+    const profileStatus = document.getElementById("profileStatus");
+    const changePasswordBtn = document.getElementById("changePasswordBtn");
+    const currentPassword = document.getElementById("currentPassword");
+    const newPassword = document.getElementById("newPassword");
+    const confirmPassword = document.getElementById("confirmPassword");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const chatModal = document.getElementById("chatModal");
+    const closeChatBtn = document.getElementById("closeChatBtn");
+    const chatTitle = document.getElementById("chatTitle");
+    const chatSubtitle = document.getElementById("chatSubtitle");
+    const messages = document.getElementById("messages");
+    const chatInput = document.getElementById("chatInput");
+    const sendMessageBtn = document.getElementById("sendMessageBtn");
+    const chatStatus = document.getElementById("chatStatus");
+    const confirmModal = document.getElementById("confirmModal");
+    const confirmTitle = document.getElementById("confirmTitle");
+    const confirmText = document.getElementById("confirmText");
+    const confirmAction = document.getElementById("confirmAction");
+    const cancelConfirm = document.getElementById("cancelConfirm");
+    const cancelConfirmTop = document.getElementById("cancelConfirmTop");
+    const createReleaseModal = document.getElementById("createReleaseModal");
+    const createReleaseForm = document.getElementById("createReleaseForm");
+    const closeCreateReleaseBtn = document.getElementById("closeCreateReleaseBtn");
+    const cancelCreateReleaseBtn = document.getElementById("cancelCreateReleaseBtn");
+    const createReleaseStatus = document.getElementById("createReleaseStatus");
+    const manualArtistsContainer = document.getElementById("manualArtistsContainer");
+    const addManualArtistBtn = document.getElementById("addManualArtistBtn");
+
+    const contractModal = document.getElementById("contractModal");
+    const closeContractModalBtn = document.getElementById("closeContractModal");
+    const addContractLabelBtn = document.getElementById("addContractLabelBtn");
+    const addContractArtistBtn = document.getElementById("addContractArtistBtn");
+    const autoSplitBtn = document.getElementById("autoSplitBtn");
+    const resetContractBtn = document.getElementById("resetContractBtn");
+    const saveContractBtn = document.getElementById("saveContractBtn");
+    const saveAndDownloadContractBtn = document.getElementById("saveAndDownloadContractBtn");
+    const contractLabelsContainer = document.getElementById("contractLabelsContainer");
+    const contractArtistsContainer = document.getElementById("contractArtistsContainer");
+    const contractSongTitle = document.getElementById("contractSongTitle");
+    const contractEffectiveDate = document.getElementById("contractEffectiveDate");
+    const contractReleaseDate = document.getElementById("contractReleaseDate");
+    const contractSplitBreakdown = document.getElementById("contractSplitBreakdown");
+    const contractTotalPill = document.getElementById("contractTotalPill");
+    const contractModalSub = document.getElementById("contractModalSub");
+
+    let activeContractItem = null;
+    let manualArtistCount = 0;
+
+    const viewConfig = {
+      submissions: { title: "Submissions", subtitle: "Pending direct artist songs waiting for an admin decision.", status: "pending" },
+      ar_submissions: { title: "A&R Submissions", subtitle: "Pending scouted submissions from A&R Portal waiting for an admin decision.", status: "pending" },
+      amethyst: { title: "Amethyst Submissions", subtitle: "Pending releases submitted from the Amethyst website.", status: "pending" },
+      releases: { title: "Releases", subtitle: "Accepted releases that need upload, cover art, and launch management.", status: "accepted" },
+      released: { title: "Released", subtitle: "Completed releases marked as done.", status: "released" },
+      trash: { title: "Trash", subtitle: "Rejected submissions stay here for 7 days, then get permanently deleted.", status: "rejected" }
+    };
+
+    function isArSubmission(item) {
+      if (!item) return false;
+      if (item.submission_type === "ar") return true;
+      if (item.ar_data && (item.ar_data.name || item.ar_data.email || item.ar_data.discovery_source)) return true;
+      if (item.board_position?.is_ar === true || item.board_position?.ar_data) return true;
+      if (typeof item.submitted_from === "string" && item.submitted_from.toLowerCase().includes("a&r")) return true;
+      if (typeof item.notes === "string" && item.notes.includes("[A&R Scout Submission]")) return true;
+      return false;
+    }
+
+    function getArData(item) {
+      if (!item) return null;
+      if (item.ar_data && typeof item.ar_data === "object") return item.ar_data;
+      if (item.board_position?.ar_data && typeof item.board_position.ar_data === "object") return item.board_position.ar_data;
+      if (typeof item.notes === "string" && item.notes.includes("[A&R Scout Submission]")) {
+        const scoutMatch = item.notes.match(/Scout:\s*([^(]+)\s*(?:\(([^)]+)\))?/);
+        const foundMatch = item.notes.match(/Found on:\s*([^\n]+)/);
+        const linkMatch = item.notes.match(/Trending Link:\s*([^\n]+)/);
+        if (scoutMatch || foundMatch) {
+          return {
+            name: scoutMatch?.[1]?.trim() || "",
+            email: scoutMatch?.[2]?.trim() || item.contact_email || "",
+            discovery_source: foundMatch?.[1]?.trim() || "A&R Portal",
+            trending_link: linkMatch?.[1]?.trim() || null
+          };
+        }
+      }
+      return null;
+    }
+
+    function renderArScoutBox(item) {
+      if (!isArSubmission(item)) return "";
+      const ar = getArData(item) || {};
+      const scoutName = ar.name || "A&R Scout";
+      const scoutEmail = ar.email || item.contact_email || "N/A";
+      const discoverySource = ar.discovery_source || "Unspecified";
+      const trendingLink = ar.trending_link || "";
+
+      return `
+        <div class="ar-scout-card">
+          <div class="ar-scout-card-head">
+            <div class="ar-scout-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+              </svg>
+              <span>A&amp;R Scout</span>
+            </div>
+            <span class="ar-source-tag">${escapeHtml(discoverySource)}</span>
+          </div>
+          <div class="ar-scout-body">
+            <div class="ar-scout-person">
+              <strong class="copyable-text" data-copy="${escapeHtml(scoutName)}" title="Click to copy scout name">${escapeHtml(scoutName)}</strong>
+              <span class="ar-scout-email copyable-text" data-copy="${escapeHtml(scoutEmail)}" title="Click to copy scout email">${escapeHtml(scoutEmail)}</span>
+            </div>
+            ${trendingLink ? `
+              <div class="ar-trending-link-row">
+                <span class="ar-trending-flame">🔥</span>
+                <a href="${escapeHtml(trendingLink)}" target="_blank" rel="noopener noreferrer" class="ar-trending-url" title="Open trending proof link">
+                  <span>Trending Proof Link</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </a>
+              </div>
+            ` : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function isAmethystSubmission(item) {
+      if (!item) return false;
+      if (item.submission_type === "amethyst") return true;
+      if (item.is_amethyst === true) return true;
+      if (typeof item.submitted_from === "string" && item.submitted_from.toLowerCase().includes("amethyst")) return true;
+      if (item.board_position?.source === "amethyst" || item.board_position?.is_amethyst === true) return true;
+      if (typeof item.notes === "string" && item.notes.toLowerCase().includes("[amethyst")) return true;
+      return false;
+    }
+
+    function renderAmethystBox(item) {
+      if (!isAmethystSubmission(item)) return "";
+      const sourceLabel = item.submitted_from || "Amethyst Website";
+      return `
+        <div class="amethyst-source-card">
+          <div class="amethyst-source-card-head">
+            <div class="amethyst-source-badge">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="6 3 18 3 22 9 12 22 2 9 6 3"></polygon>
+              </svg>
+              <span>Amethyst Submission</span>
+            </div>
+            <span class="amethyst-source-tag">${escapeHtml(sourceLabel)}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    let activeSort = "default";
+    let activeFilter = "all";
+    let activeView = "submissions";
+    let currentUser = null;
+    let allItems = [];
+    let currentChatSubmission = null;
+    let chatMessageCache = [];
+    let chatRefreshTimer = null;
+    let pendingConfirm = null;
+    let activeAccessToken = null;
+    let sessionBootstrapDone = false;
+    let sessionInitPromise = null;
+    let loadBoardPromise = null;
+
+    function setStatus(element, message, kind = "") {
+      element.textContent = message || "";
+      element.className = `status-line ${kind}`;
+    }
+
+    function withTimeout(promise, ms, timeoutMessage) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error(timeoutMessage)), ms);
+        })
+      ]);
+    }
+
+    async function checkAdminAccess() {
+      const { data, error } = await client.rpc("is_sigma_admin");
+      if (error) {
+        console.warn("Admin access check failed:", error.message);
+        return false;
+      }
+      return data === true;
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[char]));
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return "Not selected";
+      const date = new Date(`${dateString}T00:00:00`);
+      return Number.isNaN(date.getTime()) ? dateString : date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    }
+
+    function daysUntil(dateString) {
+      if (!dateString) return null;
+      const target = new Date(`${dateString}T00:00:00`);
+      if (Number.isNaN(target.getTime())) return null;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return Math.ceil((target - today) / 86400000);
+    }
+
+    function dueClass(item) {
+      if (activeView !== "releases") return "";
+      const days = daysUntil(item.preferred_release_date);
+      if (days === null) return "";
+      if (days < 0) return "due-danger";
+      if (days <= 7) return "due-warning";
+      return "due-healthy";
+    }
+
+    function dueLabel(item) {
+      const days = daysUntil(item.preferred_release_date);
+      if (days === null) return "No date";
+      if (days < 0) return `${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} overdue`;
+      if (days === 0) return "Due today";
+      if (days <= 7) return `${days} day${days === 1 ? "" : "s"} left`;
+      return `${days} days left`;
+    }
+
+    function trashDeleteDate(item) {
+      const baseDate = item.rejected_at || item.updated_at || item.created_at;
+      if (!baseDate) return null;
+      const date = new Date(baseDate);
+      if (Number.isNaN(date.getTime())) return null;
+      date.setDate(date.getDate() + 7);
+      return date;
+    }
+
+    function trashRetentionLabel(item) {
+      const deleteDate = trashDeleteDate(item);
+      if (!deleteDate) return "Auto-deletes after 7 days";
+      const msLeft = deleteDate.getTime() - Date.now();
+      const daysLeft = Math.ceil(msLeft / 86400000);
+      if (daysLeft <= 0) return "Auto-delete pending";
+      if (daysLeft === 1) return "Auto-deletes in 1 day";
+      return `Auto-deletes in ${daysLeft} days`;
+    }
+
+    function getPrimaryArtist(item) {
+      return item.primary_artist || item.artists?.[0]?.artist_name || "Unknown artist";
+    }
+
+    function normalizeUrl(value) {
+      const url = String(value || "").trim();
+      if (!url || url === "#" || url.toLowerCase() === "n/a") return "";
+      return url;
+    }
+
+    function platformIcon(type) {
+      if (type === "spotify") {
+        return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>`;
+      }
+      return `<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>`;
+    }
+
+    function renderPlatformLink(url, type) {
+      const safeUrl = normalizeUrl(url);
+      if (!safeUrl) return "";
+      const label = type === "spotify" ? "Open on Spotify" : "Open on Apple Music";
+      return `<a class="platform-link platform-${type}" href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" title="${label}" aria-label="${label}">${platformIcon(type)}</a>`;
+    }
+
+    function renderArtistRow(artist, options = {}) {
+      const canCopy = options.canCopy !== false;
+      const nameValue = artist.artist_name || artist.name || "Artist";
+      const legalValue = artist.legal_name || "";
+      const emailValue = artist.email || options.fallbackEmail || "";
+      const name = canCopy
+        ? `<strong class="copyable-text" data-copy="${escapeHtml(nameValue)}" title="Click to copy artist name">${escapeHtml(nameValue)}</strong>`
+        : `<strong>${escapeHtml(nameValue)}</strong>`;
+      const legal = legalValue
+        ? (canCopy
+          ? `<span class="artist-legal copyable-text" data-copy="${escapeHtml(legalValue)}" title="Click to copy legal name">Legal: ${escapeHtml(legalValue)}</span>`
+          : `<span class="artist-legal">Legal: ${escapeHtml(legalValue)}</span>`)
+        : "";
+      const email = emailValue
+        ? (canCopy
+          ? `<span class="artist-email copyable-text" data-copy="${escapeHtml(emailValue)}" title="Click to copy email">Email: ${escapeHtml(emailValue)}</span>`
+          : `<span class="artist-email">Email: ${escapeHtml(emailValue)}</span>`)
+        : `<span class="artist-email">Email: N/A</span>`;
+      const icons = [renderPlatformLink(artist.spotify, "spotify"), renderPlatformLink(artist.apple_music, "apple")].filter(Boolean).join("");
+      const iconRow = icons ? `<div class="platform-icons">${icons}</div>` : "";
+      const legalBlock = legal ? `<div class="artist-field-row">${legal}</div>` : "";
+      const emailBlock = email ? `<div class="artist-field-row">${email}</div>` : "";
+      return `<div class="artist-row"><div class="artist-head">${name}${iconRow}</div>${legalBlock}${emailBlock}</div>`;
+    }
+
+    let copyToastTimer = null;
+    function showCopyToast(message = "Text copied to clipboard") {
+      const toast = document.getElementById("copyToast");
+      if (!toast) return;
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(copyToastTimer);
+      copyToastTimer = setTimeout(() => toast.classList.remove("show"), 2000);
+    }
+
+    async function copyTextToClipboard(text) {
+      const value = String(text || "").trim();
+      if (!value) return false;
+      try {
+        if (navigator.clipboard?.writeText) {
+          await navigator.clipboard.writeText(value);
+          return true;
+        }
+      } catch {}
+      try {
+        const area = document.createElement("textarea");
+        area.value = value;
+        area.setAttribute("readonly", "");
+        area.style.position = "fixed";
+        area.style.opacity = "0";
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand("copy");
+        area.remove();
+        return ok;
+      } catch {
+        return false;
+      }
+    }
+
+    async function copyRichTextToClipboard(plainText, htmlText) {
+      const plain = String(plainText || "").trim();
+      const html = String(htmlText || "").trim();
+      if (!plain) return false;
+      try {
+        if (navigator.clipboard?.write && window.ClipboardItem) {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              "text/plain": new Blob([plain], { type: "text/plain" }),
+              "text/html": new Blob([html || plain.replace(/\n/g, "<br>")], { type: "text/html" })
+            })
+          ]);
+          return true;
+        }
+      } catch {}
+      return copyTextToClipboard(plain);
+    }
+
+    function getFirstArtistName(item) {
+      const fromArtists = item.artists?.[0]?.artist_name;
+      if (fromArtists) return String(fromArtists).trim();
+      const primary = String(item.primary_artist || "").trim();
+      if (primary) return primary.split(",")[0].trim();
+      return "Artist";
+    }
+
+    function highlightedSongHtml(songName) {
+      return `<strong style="font-weight:700;background-color:#ADD8E6;padding:0 4px;border-radius:3px;">${escapeHtml(songName)}</strong>`;
+    }
+
+    function buildDecisionLetter(item, decision) {
+      const artistName = getFirstArtistName(item);
+      const songName = String(item.release_title || "Untitled Release").trim();
+      const songHtml = highlightedSongHtml(songName);
+
+      if (decision === "accepted") {
+        const plain = [
+          `Hi ${artistName},`,
+          ``,
+          `Thank you for submitting your track to us. We're happy to announce that`,
+          songName,
+          `has been accepted.`,
+          ``,
+          `In a few days you should receive an email from us, with information about the contract & recoup (if needed)`,
+          `Discord Server: https://dsc.gg/sigmalabel`,
+          `My Discord Username: ubaus`,
+          ``,
+          `Best,`,
+          `Daniel Malakhov`,
+          `Sigma Label LLC`
+        ].join("\n");
+
+        const html = [
+          `<div style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;line-height:1.5;color:#111;">`,
+          `Hi ${escapeHtml(artistName)},`,
+          `<br><br>`,
+          `Thank you for submitting your track to us. We're happy to announce that`,
+          `<br>`,
+          songHtml,
+          `<br>`,
+          `has been accepted.`,
+          `<br><br>`,
+          `In a few days you should receive an email from us, with information about the contract &amp; recoup (if needed)`,
+          `<br>`,
+          `Discord Server: <a href="https://dsc.gg/sigmalabel">https://dsc.gg/sigmalabel</a>`,
+          `<br>`,
+          `My Discord Username: ubaus`,
+          `<br><br>`,
+          `Best,<br>`,
+          `Daniel Malakhov<br>`,
+          `Sigma Label LLC`,
+          `</div>`
+        ].join("");
+
+        return { plain, html };
+      }
+
+      const plain = [
+        `Hi ${artistName},`,
+        ``,
+        `Thank you for submitting your track to us. We appreciate the time and effort you put into your music and are grateful for the opportunity to listen to your work.`,
+        `After careful consideration, we've decided not to move forward with releasing your submission -`,
+        `${songName}.`,
+        ``,
+        `Feel free to reach out with future projects — we're always open to hearing new music.`,
+        ``,
+        `Best,`,
+        `Daniel Malakhov`,
+        `Sigma Label LLC`
+      ].join("\n");
+
+      const html = [
+        `<div style="font-family:Arial,Helvetica,sans-serif;white-space:pre-wrap;line-height:1.5;color:#111;">`,
+        `Hi ${escapeHtml(artistName)},`,
+        `<br><br>`,
+        `Thank you for submitting your track to us. We appreciate the time and effort you put into your music and are grateful for the opportunity to listen to your work.`,
+        `<br>`,
+        `After careful consideration, we've decided not to move forward with releasing your submission -`,
+        `<br>`,
+        `${songHtml}.`,
+        `<br><br>`,
+        `Feel free to reach out with future projects — we're always open to hearing new music.`,
+        `<br><br>`,
+        `Best,<br>`,
+        `Daniel Malakhov<br>`,
+        `Sigma Label LLC`,
+        `</div>`
+      ].join("");
+
+      return { plain, html };
+    }
+
+    function itemMatchesSearch(item, query) {
+      if (!query) return true;
+      const ar = getArData(item) || {};
+      const text = [
+        item.release_title,
+        item.primary_artist,
+        item.contact_email,
+        item.release_link,
+        JSON.stringify(item.artists || []),
+        ar.name || "",
+        ar.email || "",
+        ar.discovery_source || ""
+      ].join(" ").toLowerCase();
+      return text.includes(query.toLowerCase());
+    }
+
+    async function ensureAdminProfile() {
+      if (!currentUser?.email) return;
+      try {
+        await client.from("admin_profiles").upsert({ user_id: currentUser.id, email: currentUser.email.toLowerCase() }, { onConflict: "user_id" });
+      } catch (_) {}
+    }
+
+    async function showApp(session) {
+      currentUser = session?.user || null;
+      if (!currentUser) {
+        showLogin();
+        return;
+      }
+      activeAccessToken = session.access_token || activeAccessToken;
+
+      profileEmail.textContent = currentUser.email;
+      avatar.textContent = currentUser.email[0].toUpperCase();
+      loginView.classList.add("hidden");
+      appView.classList.remove("hidden");
+
+      const isAdmin = await checkAdminAccess();
+      if (!isAdmin) {
+        await client.auth.signOut();
+        activeAccessToken = null;
+        loginView.classList.remove("hidden");
+        appView.classList.add("hidden");
+        setStatus(loginStatus, "This account is not approved for Sigma Label admin access.", "error");
+        return;
+      }
+
+      await loadBoard();
+      ensureAdminProfile().catch(() => null);
+      cleanupOldMessages().catch(() => null);
+    }
+
+    async function handleSession(session) {
+      if (!session?.user) {
+        activeAccessToken = null;
+        showLogin();
+        return;
+      }
+
+      const boardStillLoading = board.textContent.includes("Loading admin board") || board.textContent.includes("Fetching Sigma Label submissions");
+      if (session.access_token === activeAccessToken && !appView.classList.contains("hidden") && !boardStillLoading && allItems.length) {
+        return;
+      }
+
+      if (sessionInitPromise) {
+        await sessionInitPromise;
+        const stillLoading = board.textContent.includes("Fetching Sigma Label submissions");
+        if (session.access_token === activeAccessToken && !stillLoading && allItems.length) {
+          return;
+        }
+      }
+
+      activeAccessToken = session.access_token;
+      sessionInitPromise = showApp(session);
+      try {
+        await sessionInitPromise;
+      } finally {
+        sessionInitPromise = null;
+      }
+    }
+
+    function queueSessionInit(session) {
+      sessionBootstrapDone = true;
+      setTimeout(() => {
+        handleSession(session).catch((error) => {
+          console.error("Session init failed:", error);
+          board.innerHTML = `<div class="empty"><div><strong>Admin board failed to start.</strong><span>${escapeHtml(error.message || String(error))}</span></div></div>`;
+        });
+      }, 0);
+    }
+
+    async function showLogin() {
+      currentUser = null;
+      activeAccessToken = null;
+      loginView.classList.remove("hidden");
+      appView.classList.add("hidden");
+    }
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      setStatus(loginStatus, "Checking credentials...");
+      const email = document.getElementById("loginEmail").value.trim().toLowerCase();
+      const password = document.getElementById("loginPassword").value;
+      const { data, error } = await client.auth.signInWithPassword({ email, password });
+      if (error) {
+        setStatus(loginStatus, error.message, "error");
+        return;
+      }
+      setStatus(loginStatus, "Logged in.", "success");
+      await handleSession(data.session);
+    });
+
+    profileToggle.addEventListener("click", () => profile.classList.toggle("open"));
+    document.addEventListener("click", (event) => { if (!profile.contains(event.target)) profile.classList.remove("open"); });
+
+    changePasswordBtn.addEventListener("click", async () => {
+      const current = currentPassword.value;
+      const password = newPassword.value;
+      const confirm = confirmPassword.value;
+      const originalLabel = changePasswordBtn.textContent;
+
+      if (!current) {
+        setStatus(profileStatus, "Enter your current password.", "error");
+        return;
+      }
+      if (!password || password.length < 8) {
+        setStatus(profileStatus, "New password must be at least 8 characters.", "error");
+        return;
+      }
+      if (password !== confirm) {
+        setStatus(profileStatus, "New passwords do not match.", "error");
+        return;
+      }
+      if (password === current) {
+        setStatus(profileStatus, "Choose a different password than your current one.", "error");
+        return;
+      }
+
+      changePasswordBtn.disabled = true;
+      changePasswordBtn.textContent = "Saving...";
+
+      try {
+        const email = currentUser?.email?.toLowerCase();
+        if (!email) {
+          throw new Error("You must be logged in to change your password.");
+        }
+
+        setStatus(profileStatus, "Verifying current password...");
+        const { error: verifyError } = await withTimeout(
+          client.auth.signInWithPassword({ email, password: current }),
+          15000,
+          "Verification timed out. Check your connection and try again."
+        );
+        if (verifyError) {
+          throw new Error("Current password is incorrect.");
+        }
+
+        setStatus(profileStatus, "Saving new password...");
+        const { error: updateError } = await withTimeout(
+          client.auth.updateUser({ password }),
+          15000,
+          "Password update timed out. Check your connection and try again."
+        );
+        if (updateError) {
+          throw new Error(updateError.message);
+        }
+
+        setStatus(profileStatus, "Confirming new password...");
+        await client.auth.signOut();
+        activeAccessToken = null;
+        const { data: loginData, error: loginError } = await withTimeout(
+          client.auth.signInWithPassword({ email, password }),
+          15000,
+          "Could not confirm the new password. Try logging in manually."
+        );
+        if (loginError) {
+          showLogin();
+          throw new Error(`Password may not have saved: ${loginError.message}`);
+        }
+
+        client.from("admin_profiles").upsert(
+          { user_id: loginData.user.id, email, password_updated_at: new Date().toISOString() },
+          { onConflict: "user_id" }
+        ).catch(() => null);
+
+        currentPassword.value = "";
+        newPassword.value = "";
+        confirmPassword.value = "";
+        changePasswordBtn.textContent = "Updated!";
+        setStatus(profileStatus, "Password updated successfully. Your new password is active.", "success");
+        await showApp(loginData.session);
+      } catch (error) {
+        setStatus(profileStatus, error.message || "Password update failed.", "error");
+        changePasswordBtn.textContent = originalLabel;
+      } finally {
+        changePasswordBtn.disabled = false;
+        setTimeout(() => {
+          if (changePasswordBtn.textContent === "Updated!") {
+            changePasswordBtn.textContent = originalLabel;
+          }
+        }, 3000);
+      }
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      await client.auth.signOut();
+      showLogin();
+    });
+
+    function updateFilterSortUI() {
+      if (!sortOptionsContainer || !filterOptionsContainer) return;
+
+      sortOptionsContainer.querySelectorAll(".filter-option").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.sort === activeSort);
+      });
+
+      filterOptionsContainer.querySelectorAll(".filter-option").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.filter === activeFilter);
+      });
+
+      const sortLabels = {
+        "default": "Sort & Filter",
+        "overdue-first": "Sort: Overdue",
+        "closest-date": "Sort: Closest Date",
+        "furthest-date": "Sort: Furthest Date",
+        "oldest-added": "Sort: Oldest",
+        "title-asc": "Sort: Title (A-Z)",
+        "artist-asc": "Sort: Artist (A-Z)"
+      };
+
+      const hasCustomSort = activeSort !== "default";
+      const hasCustomFilter = activeFilter !== "all";
+
+      if (hasCustomSort) {
+        filterSortBtnLabel.textContent = sortLabels[activeSort] || "Sort & Filter";
+      } else if (hasCustomFilter) {
+        const filterLabels = {
+          "overdue": "Overdue Only",
+          "due-soon": "Due Soon",
+          "needs-cover": "Needs Cover",
+          "has-cover": "Has Cover",
+          "amethyst-only": "Amethyst Only",
+          "exclude-amethyst": "Exclude Amethyst"
+        };
+        filterSortBtnLabel.textContent = `Filter: ${filterLabels[activeFilter] || "Active"}`;
+      } else {
+        filterSortBtnLabel.textContent = "Sort & Filter";
+      }
+
+      const activeCount = (hasCustomSort ? 1 : 0) + (hasCustomFilter ? 1 : 0);
+      if (activeCount > 0) {
+        filterBadge.textContent = String(activeCount);
+        filterBadge.classList.remove("hidden");
+        filterSortBtn.classList.add("active-filter");
+      } else {
+        filterBadge.classList.add("hidden");
+        filterSortBtn.classList.remove("active-filter");
+      }
+    }
+
+    filterSortBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isHidden = filterSortMenu.classList.contains("hidden");
+      filterSortMenu.classList.toggle("hidden", !isHidden);
+      filterSortBtn.setAttribute("aria-expanded", isHidden ? "true" : "false");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (filterSortWrap && !filterSortWrap.contains(e.target)) {
+        filterSortMenu.classList.add("hidden");
+        filterSortBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    sortOptionsContainer?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-sort]");
+      if (!btn) return;
+      activeSort = btn.dataset.sort;
+      updateFilterSortUI();
+      renderBoard(allItems);
+      filterSortMenu.classList.add("hidden");
+    });
+
+    filterOptionsContainer?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-filter]");
+      if (!btn) return;
+      activeFilter = btn.dataset.filter;
+      updateFilterSortUI();
+      renderBoard(allItems);
+      filterSortMenu.classList.add("hidden");
+    });
+
+    filterResetBtn?.addEventListener("click", () => {
+      activeSort = "default";
+      activeFilter = "all";
+      updateFilterSortUI();
+      renderBoard(allItems);
+      filterSortMenu.classList.add("hidden");
+    });
+
+    tabs.addEventListener("click", async (event) => {
+      const tab = event.target.closest(".tab");
+      if (!tab) return;
+      activeView = tab.dataset.view;
+      document.querySelectorAll(".tab").forEach((button) => button.classList.toggle("active", button === tab));
+      activeFilter = "all";
+      updateFilterSortUI();
+      await loadBoard();
+    });
+
+    searchInput.addEventListener("input", () => renderBoard(allItems));
+    window.addEventListener("resize", () => {
+      if (!appView.classList.contains("hidden") && allItems.length) renderBoard(allItems);
+    });
+    refreshBtn.addEventListener("click", loadBoard);
+
+    function buildManualArtistBlock(index) {
+      const requireName = index === 0 ? "required" : "";
+      return `
+        <div class="create-artist-block" data-index="${index}">
+          <div class="create-artist-head">
+            <span class="create-artist-index">Artist #${index + 1}</span>
+            <button class="create-remove-artist" type="button" data-action="remove-manual-artist" aria-label="Remove artist">×</button>
+          </div>
+          <div class="form-grid">
+            <div class="field"><label>Artist name *</label><input type="text" data-artist-name placeholder="Public artist name" ${requireName} /></div>
+            <div class="field"><label>Legal name</label><input type="text" data-artist-legal placeholder="Full legal name" /></div>
+            <div class="field wide"><label>Artist email *</label><input type="email" data-artist-email placeholder="artist@example.com" required /></div>
+          </div>
+          <div class="link-grid">
+            <div class="field link-field" data-link-field="spotify">
+              <div class="field-head">
+                <label class="platform-label spotify">Spotify profile</label>
+                <button class="link-toggle" type="button" data-action="toggle-link" data-link="spotify">Not available</button>
+              </div>
+              <input type="url" data-artist-spotify placeholder="https://open.spotify.com/artist/..." />
+            </div>
+            <div class="field link-field" data-link-field="apple">
+              <div class="field-head">
+                <label class="platform-label apple">Apple Music</label>
+                <button class="link-toggle" type="button" data-action="toggle-link" data-link="apple">Not available</button>
+              </div>
+              <input type="url" data-artist-apple placeholder="https://music.apple.com/..." />
+            </div>
+          </div>
+        </div>`;
+    }
+
+    function renumberManualArtists() {
+      const blocks = manualArtistsContainer.querySelectorAll(".create-artist-block");
+      blocks.forEach((block, idx) => {
+        block.dataset.index = String(idx);
+        const label = block.querySelector(".create-artist-index");
+        if (label) label.textContent = `Artist #${idx + 1}`;
+        const nameInput = block.querySelector("[data-artist-name]");
+        if (nameInput) {
+          if (idx === 0) nameInput.setAttribute("required", "");
+          else nameInput.removeAttribute("required");
+        }
+        const removeBtn = block.querySelector("[data-action='remove-manual-artist']");
+        if (removeBtn) removeBtn.style.display = blocks.length <= 1 ? "none" : "grid";
+      });
+    }
+
+    function addManualArtist(focusName = true) {
+      manualArtistsContainer.insertAdjacentHTML("beforeend", buildManualArtistBlock(manualArtistCount));
+      manualArtistCount += 1;
+      renumberManualArtists();
+      if (focusName) {
+        manualArtistsContainer.lastElementChild?.querySelector("[data-artist-name]")?.focus();
+      }
+    }
+
+    function removeManualArtist(block) {
+      const blocks = manualArtistsContainer.querySelectorAll(".create-artist-block");
+      if (blocks.length <= 1) return;
+      block.remove();
+      renumberManualArtists();
+    }
+
+    function toggleManualLinkField(button) {
+      const block = button.closest(".link-field");
+      const linkType = button.dataset.link;
+      const input = block?.querySelector(linkType === "spotify" ? "[data-artist-spotify]" : "[data-artist-apple]");
+      if (!input) return;
+      const isActive = button.classList.toggle("active");
+      button.textContent = isActive ? "Marked N/A" : "Not available";
+      button.setAttribute("aria-pressed", String(isActive));
+      if (isActive) {
+        input.value = "";
+        input.disabled = true;
+        block.classList.add("is-disabled");
+      } else {
+        input.disabled = false;
+        block.classList.remove("is-disabled");
+      }
+    }
+
+    function resetManualReleaseForm() {
+      createReleaseForm.reset();
+      manualArtistCount = 0;
+      manualArtistsContainer.innerHTML = "";
+      addManualArtist(false);
+      manualArtistsContainer.querySelectorAll(".link-toggle").forEach((button) => {
+        button.classList.remove("active");
+        button.textContent = "Not available";
+        button.setAttribute("aria-pressed", "false");
+      });
+      manualArtistsContainer.querySelectorAll(".link-field").forEach((field) => field.classList.remove("is-disabled"));
+      manualArtistsContainer.querySelectorAll("[data-artist-spotify], [data-artist-apple]").forEach((input) => {
+        input.disabled = false;
+      });
+      setStatus(createReleaseStatus, "");
+    }
+
+    function collectManualArtists() {
+      return Array.from(manualArtistsContainer.querySelectorAll(".create-artist-block")).map((block, idx) => {
+        const artistName = block.querySelector("[data-artist-name]")?.value.trim() || "";
+        const legalName = block.querySelector("[data-artist-legal]")?.value.trim() || "";
+        const artistEmail = block.querySelector("[data-artist-email]")?.value.trim() || "";
+        const spotifyDisabled = block.querySelector("[data-link-field='spotify'] .link-toggle")?.classList.contains("active");
+        const appleDisabled = block.querySelector("[data-link-field='apple'] .link-toggle")?.classList.contains("active");
+        const spotify = spotifyDisabled ? null : block.querySelector("[data-artist-spotify]")?.value.trim() || null;
+        const appleMusic = appleDisabled ? null : block.querySelector("[data-artist-apple]")?.value.trim() || null;
+        return {
+          index: idx + 1,
+          artist_name: artistName,
+          legal_name: legalName,
+          email: artistEmail,
+          spotify,
+          apple_music: appleMusic
+        };
+      }).filter((artist) => artist.artist_name);
+    }
+
+    addManualArtistBtn.addEventListener("click", () => addManualArtist(true));
+    manualArtistsContainer.addEventListener("click", (event) => {
+      const removeBtn = event.target.closest("[data-action='remove-manual-artist']");
+      if (removeBtn) {
+        removeManualArtist(removeBtn.closest(".create-artist-block"));
+        return;
+      }
+      const toggleBtn = event.target.closest("[data-action='toggle-link']");
+      if (toggleBtn) toggleManualLinkField(toggleBtn);
+    });
+
+    newReleaseBtn.addEventListener("click", () => {
+      resetManualReleaseForm();
+      createReleaseModal.classList.remove("hidden");
+      document.getElementById("manualReleaseTitle")?.focus();
+    });
+    function closeCreateRelease() { createReleaseModal.classList.add("hidden"); }
+    closeCreateReleaseBtn.addEventListener("click", closeCreateRelease);
+    cancelCreateReleaseBtn.addEventListener("click", closeCreateRelease);
+    createReleaseModal.addEventListener("click", (event) => { if (event.target === createReleaseModal) closeCreateRelease(); });
+    createReleaseForm.addEventListener("submit", createManualRelease);
+
+    async function createManualRelease(event) {
+      event.preventDefault();
+      const artists = collectManualArtists();
+      if (!artists.length) {
+        setStatus(createReleaseStatus, "Add at least one artist with a name.", "error");
+        manualArtistsContainer.querySelector("[data-artist-name]")?.focus();
+        return;
+      }
+      if (artists.some((artist) => !artist.email)) {
+        setStatus(createReleaseStatus, "Each artist needs an email address.", "error");
+        manualArtistsContainer.querySelector("[data-artist-email]")?.focus();
+        return;
+      }
+
+      setStatus(createReleaseStatus, "Creating release...");
+      const releaseTitle = document.getElementById("manualReleaseTitle").value.trim();
+      const contactEmail = artists.map((artist) => artist.email).filter(Boolean)[0] || "";
+      const preferredDate = document.getElementById("manualReleaseDate").value || null;
+      const releaseLink = document.getElementById("manualReleaseLink").value.trim();
+      const releasePlatform = document.getElementById("manualReleasePlatform").value.trim() || "admin_manual";
+      const notes = document.getElementById("manualNotes").value.trim();
+      const primaryArtist = artists.map((artist) => artist.artist_name).join(", ");
+
+      const payload = {
+        status: "accepted",
+        release_title: releaseTitle,
+        preferred_release_date: preferredDate,
+        release_platform: releasePlatform,
+        release_link: releaseLink || null,
+        contact_email: contactEmail,
+        primary_artist: primaryArtist,
+        artists,
+        additional_versions: [],
+        notes: notes ? `Admin-created release. ${notes}` : "Admin-created release.",
+        submitted_from: "admin_manual",
+        accepted_at: new Date().toISOString()
+      };
+
+      const { error } = await client.from("submissions").insert(payload);
+      if (error) {
+        setStatus(createReleaseStatus, error.message, "error");
+        return;
+      }
+      setStatus(createReleaseStatus, "Release created.", "success");
+      closeCreateRelease();
+      activeView = "releases";
+      document.querySelectorAll(".tab").forEach((button) => button.classList.toggle("active", button.dataset.view === "releases"));
+      await loadBoard();
+    }
+
+    async function cleanupOldMessages() {
+      try {
+        await client.from("release_messages").delete().lt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      } catch (_) {}
+    }
+
+    async function cleanupOldTrash() {
+      try {
+        const { error: rpcError } = await client.rpc("cleanup_old_rejected_submissions");
+        if (!rpcError) return;
+      } catch (_) {
+        // Fallback below if the SQL helper has not been installed yet.
+      }
+
+      try {
+        const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        await client.from("submissions").delete().eq("status", "rejected").lt("rejected_at", cutoff);
+        await client.from("submissions").delete().eq("status", "rejected").is("rejected_at", null).lt("updated_at", cutoff);
+      } catch (error) {
+        console.warn("Trash cleanup skipped:", error);
+      }
+    }
+
+    async function loadBoard() {
+      if (loadBoardPromise) {
+        return loadBoardPromise;
+      }
+
+      loadBoardPromise = (async () => {
+        const config = viewConfig[activeView];
+        boardTitle.textContent = config.title;
+        boardSubtitle.textContent = config.subtitle;
+        board.innerHTML = `<div class="empty"><div><strong>Loading...</strong><span>Fetching Sigma Label submissions.</span></div></div>`;
+
+        try {
+          const { data, error } = await withTimeout(
+            client.from("submissions").select("*").eq("status", config.status).order("created_at", { ascending: false }),
+            20000,
+            "Loading submissions timed out. Click Refresh to try again."
+          );
+          if (error) {
+            board.innerHTML = `<div class="empty"><div><strong>Database setup needed.</strong><span>${escapeHtml(error.message)}</span></div></div>`;
+            allItems = [];
+            return;
+          }
+          let fetched = data || [];
+          if (activeView === "submissions") {
+            fetched = fetched.filter((item) => !isArSubmission(item) && !isAmethystSubmission(item));
+          } else if (activeView === "ar_submissions") {
+            fetched = fetched.filter((item) => isArSubmission(item));
+          } else if (activeView === "amethyst") {
+            fetched = fetched.filter((item) => isAmethystSubmission(item));
+          }
+          allItems = fetched;
+          renderBoard(allItems);
+          cleanupOldTrash().catch((error) => console.warn("Trash cleanup skipped:", error));
+        } catch (error) {
+          board.innerHTML = `<div class="empty"><div><strong>Admin board error.</strong><span>${escapeHtml(error.message || String(error))}</span></div></div>`;
+          allItems = [];
+        }
+      })();
+
+      try {
+        await loadBoardPromise;
+      } finally {
+        loadBoardPromise = null;
+      }
+    }
+
+    function applyFilterAndSort(items) {
+      let result = [...items];
+
+      // 1. Filter
+      if (activeFilter === "overdue") {
+        result = result.filter((item) => {
+          const days = daysUntil(item.preferred_release_date);
+          return days !== null && days < 0;
+        });
+      } else if (activeFilter === "due-soon") {
+        result = result.filter((item) => {
+          const days = daysUntil(item.preferred_release_date);
+          return days !== null && days >= 0 && days <= 7;
+        });
+      } else if (activeFilter === "needs-cover") {
+        result = result.filter((item) => !item.cover_art_url);
+      } else if (activeFilter === "has-cover") {
+        result = result.filter((item) => !!item.cover_art_url);
+      } else if (activeFilter === "amethyst-only") {
+        result = result.filter((item) => isAmethystSubmission(item));
+      } else if (activeFilter === "exclude-amethyst") {
+        result = result.filter((item) => !isAmethystSubmission(item));
+      }
+
+      // 2. Sort
+      if (activeSort === "overdue-first") {
+        result.sort((a, b) => {
+          const daysA = daysUntil(a.preferred_release_date);
+          const daysB = daysUntil(b.preferred_release_date);
+          const isOverdueA = daysA !== null && daysA < 0;
+          const isOverdueB = daysB !== null && daysB < 0;
+
+          if (isOverdueA && isOverdueB) return daysA - daysB;
+          if (isOverdueA) return -1;
+          if (isOverdueB) return 1;
+
+          if (daysA !== null && daysB !== null) return daysA - daysB;
+          if (daysA !== null) return -1;
+          if (daysB !== null) return 1;
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        });
+      } else if (activeSort === "closest-date") {
+        result.sort((a, b) => {
+          const daysA = daysUntil(a.preferred_release_date);
+          const daysB = daysUntil(b.preferred_release_date);
+          if (daysA === null && daysB === null) return 0;
+          if (daysA === null) return 1;
+          if (daysB === null) return -1;
+
+          const isUpcomingA = daysA >= 0;
+          const isUpcomingB = daysB >= 0;
+          if (isUpcomingA && isUpcomingB) return daysA - daysB; // closest upcoming first (0, 1, 2, 5...)
+          if (isUpcomingA) return -1; // upcoming comes before overdue
+          if (isUpcomingB) return 1;
+          return daysB - daysA; // recently overdue before ancient
+        });
+      } else if (activeSort === "furthest-date") {
+        result.sort((a, b) => {
+          const daysA = daysUntil(a.preferred_release_date);
+          const daysB = daysUntil(b.preferred_release_date);
+          if (daysA === null && daysB === null) return 0;
+          if (daysA === null) return 1;
+          if (daysB === null) return -1;
+          return daysB - daysA;
+        });
+      } else if (activeSort === "oldest-added") {
+        result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+      } else if (activeSort === "title-asc") {
+        result.sort((a, b) => (a.release_title || "").localeCompare(b.release_title || ""));
+      } else if (activeSort === "artist-asc") {
+        result.sort((a, b) => getPrimaryArtist(a).localeCompare(getPrimaryArtist(b)));
+      } else {
+        // Default / Board Order
+        result.sort((a, b) => {
+          const orderA = a.board_position?.[activeView]?.order;
+          const orderB = b.board_position?.[activeView]?.order;
+          if (orderA !== undefined && orderB !== undefined) return orderA - orderB;
+          if (orderA !== undefined) return -1;
+          if (orderB !== undefined) return 1;
+
+          const yA = a.board_position?.[activeView]?.y;
+          const yB = b.board_position?.[activeView]?.y;
+          if (Number.isFinite(yA) && Number.isFinite(yB)) {
+            const xA = a.board_position?.[activeView]?.x || 0;
+            const xB = b.board_position?.[activeView]?.x || 0;
+            return (yA * 10000 + xA) - (yB * 10000 + xB);
+          }
+
+          return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+        });
+      }
+
+      return result;
+    }
+
+    async function handleItemReorder(sourceId, targetId) {
+      const sourceIndex = allItems.findIndex((i) => i.id === sourceId);
+      const targetIndex = allItems.findIndex((i) => i.id === targetId);
+      if (sourceIndex === -1 || targetIndex === -1 || sourceIndex === targetIndex) return;
+
+      const [movedItem] = allItems.splice(sourceIndex, 1);
+      allItems.splice(targetIndex, 0, movedItem);
+
+      if (activeSort !== "default") {
+        activeSort = "default";
+        updateFilterSortUI();
+      }
+
+      renderBoard(allItems);
+
+      try {
+        const updates = allItems.map((it, idx) => {
+          const currentPos = it.board_position && typeof it.board_position === "object" ? it.board_position : {};
+          const nextPos = { ...currentPos, [activeView]: { order: idx, x: 0, y: 0 } };
+          it.board_position = nextPos;
+          return client.from("submissions").update({ board_position: nextPos }).eq("id", it.id);
+        });
+        await Promise.all(updates);
+      } catch (err) {
+        console.warn("Failed to persist reorder to database:", err);
+      }
+    }
+
+    function renderBoard(items) {
+      const query = searchInput.value.trim();
+      let filtered = items.filter((item) => itemMatchesSearch(item, query));
+      filtered = applyFilterAndSort(filtered);
+
+      board.innerHTML = "";
+      if (!filtered.length) {
+        const hasFilters = activeFilter !== "all" || query;
+        const msg = hasFilters ? "Nothing matches the current search or filter." : `No items in ${escapeHtml(viewConfig[activeView].title)}.`;
+        board.innerHTML = `<div class="empty"><div><strong>${escapeHtml(viewConfig[activeView].title)}</strong><span>${escapeHtml(msg)}</span></div></div>`;
+        return;
+      }
+      filtered.forEach((item) => board.appendChild(createNote(item)));
+    }
+
+    function createNote(item) {
+      const isAmethyst = isAmethystSubmission(item);
+      const note = document.createElement("article");
+      note.className = `note ${dueClass(item)} ${activeView === "released" ? "released-note" : ""} ${isAmethyst ? "amethyst-card" : ""}`.trim();
+      note.dataset.id = item.id;
+
+      const artists = Array.isArray(item.artists) ? item.artists : [];
+      const versions = Array.isArray(item.additional_versions) ? item.additional_versions : [];
+      const primaryArtist = getPrimaryArtist(item);
+      const cover = item.cover_art_url ? `<img class="cover-preview" src="${escapeHtml(item.cover_art_url)}" alt="Cover art preview" onerror="this.remove()" />` : "";
+      const notes = item.notes ? `<div class="meta"><small>Notes</small><span>${escapeHtml(item.notes)}</span></div>` : "";
+      const trashMeta = activeView === "trash" ? `<div class="meta"><small>Trash Retention</small><span>${escapeHtml(trashRetentionLabel(item))}</span></div>` : "";
+      const artistRows = artists.length
+        ? artists.map((artist, idx) => renderArtistRow(artist, {
+            canCopy: true,
+            fallbackEmail: idx === 0 ? item.contact_email : ""
+          })).join("")
+        : renderArtistRow({ artist_name: primaryArtist, legal_name: "", email: item.contact_email || "", spotify: null, apple_music: null }, { canCopy: true, fallbackEmail: item.contact_email });
+
+      const releaseTitle = item.release_title || "Untitled Release";
+      const isAr = isArSubmission(item);
+      const arPill = isAr ? `<span class="pill ar-pill">A&amp;R</span>` : "";
+      const amethystPill = isAmethyst ? `<span class="pill amethyst-pill">Amethyst</span>` : "";
+
+      note.innerHTML = `
+        <div class="note-top">
+          <div class="note-header-content">
+            <h2 class="copyable-text" data-copy="${escapeHtml(releaseTitle)}" title="Click to copy release name">${escapeHtml(releaseTitle)}</h2>
+            <div class="release-artist copyable-text" data-copy="${escapeHtml(primaryArtist)}" title="Click to copy artist name">${escapeHtml(primaryArtist)}</div>
+            <div class="pill-row">
+              <span class="pill due-pill">${escapeHtml(dueLabel(item))}</span>
+              <span class="pill">${escapeHtml(item.status)}</span>
+              ${arPill}
+              ${amethystPill}
+            </div>
+          </div>
+          <div class="drag-handle" title="Drag to reorder in grid" draggable="false">
+            <svg width="14" height="18" viewBox="0 0 14 18" fill="currentColor" aria-hidden="true">
+              <circle cx="4" cy="3" r="1.6"/><circle cx="10" cy="3" r="1.6"/>
+              <circle cx="4" cy="9" r="1.6"/><circle cx="10" cy="9" r="1.6"/>
+              <circle cx="4" cy="15" r="1.6"/><circle cx="10" cy="15" r="1.6"/>
+            </svg>
+          </div>
+        </div>
+        ${cover}
+        <div class="artists-label">Artist Details</div>
+        <div class="artists">${artistRows}</div>
+        <div class="meta-grid">
+          <div class="meta"><small>Preferred Release Date</small><span>${escapeHtml(formatDate(item.preferred_release_date))}</span></div>
+          <div class="meta"><small>Release Link</small>${item.release_link ? `<a href="${escapeHtml(item.release_link)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.release_link)}</a>` : `<span>N/A</span>`}</div>
+          <div class="meta"><small>Platform / Versions</small><span>${escapeHtml((item.release_platform || "N/A").replace("_", " "))}${versions.length ? " · " + escapeHtml(versions.join(", ")) : ""}</span></div>
+          ${trashMeta}
+          ${notes}
+        </div>
+        ${renderArScoutBox(item)}
+        ${renderAmethystBox(item)}
+        ${renderContractBox(item)}
+        ${renderActions(item)}
+      `;
+
+      enableDrag(note, item);
+      bindNoteActions(note, item);
+      return note;
+    }
+
+    function renderActions(item) {
+      if (activeView === "submissions" || activeView === "ar_submissions" || activeView === "amethyst") {
+        return `<div class="note-actions"><button class="secondary-btn mini-btn" data-action="chat">Chat</button><button class="primary-btn mini-btn" data-action="accept">Accept</button><button class="danger-btn mini-btn" data-action="reject">Reject</button></div>`;
+      }
+      if (activeView === "releases") {
+        return `
+          <div class="cover-tools">
+            <input type="url" placeholder="Cover art URL" data-cover-url value="${escapeHtml(item.cover_art_url || "")}" />
+            <input type="file" accept="image/*" data-cover-file />
+            <button class="secondary-btn mini-btn" data-action="save-cover">Save Cover</button>
+          </div>
+          <div class="note-actions">
+            <button class="secondary-btn mini-btn" data-action="chat">Chat</button>
+            <button class="primary-btn mini-btn" data-action="done">Done</button>
+            <button class="danger-btn mini-btn btn-with-icon" data-action="trash" title="Delete release to Trash immediately">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+              </svg>
+              <span>Trash</span>
+            </button>
+          </div>
+        `;
+      }
+      if (activeView === "released") {
+        return `
+          <div class="note-actions">
+            <button class="secondary-btn mini-btn btn-with-icon" data-action="return-to-releases" title="Return to Releases (saves within the database)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 19 2 12 11 5 11 19"></polygon>
+                <polygon points="22 19 13 12 22 5 22 19"></polygon>
+              </svg>
+              <span>Return to Releases</span>
+            </button>
+            <button class="secondary-btn mini-btn" data-action="chat">Chat</button>
+          </div>
+        `;
+      }
+      if (activeView === "trash") {
+        return `<div class="note-actions"><button class="secondary-btn mini-btn" data-action="restore">Restore</button><button class="danger-btn mini-btn" data-action="delete-permanent">Delete Permanently</button></div>`;
+      }
+      return `<div class="note-actions"><button class="secondary-btn mini-btn" data-action="chat">Chat</button></div>`;
+    }
+
+    function bindNoteActions(note, item) {
+      note.querySelector("[data-action='accept']")?.addEventListener("click", () => confirmDecision(item, "accepted"));
+      note.querySelector("[data-action='reject']")?.addEventListener("click", () => confirmDecision(item, "rejected"));
+      note.querySelector("[data-action='done']")?.addEventListener("click", () => markDone(item));
+      note.querySelector("[data-action='trash']")?.addEventListener("click", () => trashRelease(item));
+      note.querySelector("[data-action='return-to-releases']")?.addEventListener("click", () => returnReleaseToReleases(item));
+      note.querySelector("[data-action='edit-contract']")?.addEventListener("click", () => openContractModal(item));
+      note.querySelector("[data-action='download-contract']")?.addEventListener("click", () => downloadReleaseContract(item));
+      note.querySelector("[data-action='restore']")?.addEventListener("click", () => restoreSubmission(item));
+      note.querySelector("[data-action='delete-permanent']")?.addEventListener("click", () => permanentlyDeleteSubmission(item));
+      note.querySelector("[data-action='chat']")?.addEventListener("click", () => openChat(item));
+      note.querySelector("[data-action='save-cover']")?.addEventListener("click", () => saveCover(note, item));
+
+      // Copy to clipboard works in all sections: submissions, releases, released, and trash
+      note.querySelectorAll("[data-copy]").forEach((el) => {
+        el.addEventListener("click", async (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const textToCopy = el.getAttribute("data-copy");
+          if (!textToCopy) return;
+          const copied = await copyTextToClipboard(textToCopy);
+          if (copied) {
+            const preview = textToCopy.length > 25 ? textToCopy.slice(0, 22) + "..." : textToCopy;
+            showCopyToast(`Copied: "${preview}"`);
+          }
+        });
+      });
+    }
+
+    function showConfirm(title, text, actionLabel, action) {
+      confirmTitle.textContent = title;
+      confirmText.textContent = text;
+      confirmAction.textContent = actionLabel;
+      pendingConfirm = action;
+      confirmModal.classList.remove("hidden");
+    }
+    function closeConfirm() { confirmModal.classList.add("hidden"); pendingConfirm = null; }
+    confirmAction.addEventListener("click", async () => { if (pendingConfirm) await pendingConfirm(); closeConfirm(); });
+    cancelConfirm.addEventListener("click", closeConfirm);
+    cancelConfirmTop.addEventListener("click", closeConfirm);
+
+    function confirmDecision(item, status) {
+      const label = status === "accepted" ? "accept" : "reject";
+      const letterLabel = status === "accepted" ? "acceptance" : "rejection";
+      showConfirm(
+        `${status === "accepted" ? "Accept" : "Reject"} release?`,
+        `This will ${label} ${item.release_title || "this release"}, update the board, and copy the ${letterLabel} letter to your clipboard.`,
+        status === "accepted" ? "Accept" : "Reject",
+        () => updateDecision(item, status)
+      );
+    }
+
+    async function updateDecision(item, status) {
+      const update = status === "accepted" ? { status, accepted_at: new Date().toISOString() } : { status, rejected_at: new Date().toISOString() };
+      const { error } = await client.from("submissions").update(update).eq("id", item.id);
+      if (error) { alert(error.message); return; }
+
+      const letter = buildDecisionLetter(item, status);
+      const copied = await copyRichTextToClipboard(letter.plain, letter.html);
+      if (copied) {
+        showCopyToast(status === "accepted" ? "Accepted — moved to Releases (letter copied)" : "Rejected — moved to Trash (letter copied)");
+      } else {
+        alert(status === "accepted" ? "Release accepted and moved to Releases, but letter could not be copied to clipboard." : "Release rejected, but letter could not be copied to clipboard.");
+      }
+
+      await loadBoard();
+    }
+
+    async function markDone(item) {
+      showConfirm("Mark as released?", `This moves ${item.release_title || "this release"} to the Released category.`, "Mark Done", async () => {
+        const { error } = await client.from("submissions").update({ status: "released", released_at: new Date().toISOString() }).eq("id", item.id);
+        if (error) alert(error.message);
+        await loadBoard();
+      });
+    }
+
+    async function returnReleaseToReleases(item) {
+      showConfirm(
+        "Return to Releases?",
+        `This moves ${item.release_title || "this release"} back to the Releases category and saves within the database.`,
+        "Return to Releases",
+        async () => {
+          const { error } = await client
+            .from("submissions")
+            .update({ status: "accepted", released_at: null })
+            .eq("id", item.id);
+
+          if (error) {
+            alert("Error updating release: " + error.message);
+            return;
+          }
+
+          showCopyToast("Saved within the database — moved to Releases");
+          await loadBoard();
+        }
+      );
+    }
+
+    async function trashRelease(item) {
+      showConfirm(
+        "Delete to Trash?",
+        `Are you sure you want to move "${item.release_title || "this release"}" to Trash immediately?`,
+        "Move to Trash",
+        async () => {
+          const { error } = await client
+            .from("submissions")
+            .update({
+              status: "rejected",
+              rejected_at: new Date().toISOString()
+            })
+            .eq("id", item.id);
+
+          if (error) {
+            alert("Error moving release to trash: " + error.message);
+            return;
+          }
+
+          showCopyToast("Release moved to Trash");
+          await loadBoard();
+        }
+      );
+    }
+
+    function formatDDMMYYYY(dateInput) {
+      let d;
+      if (!dateInput) {
+        d = new Date();
+      } else if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        const parts = dateInput.split("-");
+        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else {
+        d = new Date(dateInput);
+      }
+      if (isNaN(d.getTime())) d = new Date();
+      const day = String(d.getDate()).padStart(2, "0");
+      const month = String(d.getMonth() + 1).padStart(2, "0");
+      const year = d.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    function addYearsToDate(dateInput, yearsToAdd = 3) {
+      let d;
+      if (!dateInput) {
+        d = new Date();
+      } else if (typeof dateInput === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
+        const parts = dateInput.split("-");
+        d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else {
+        d = new Date(dateInput);
+      }
+      if (isNaN(d.getTime())) d = new Date();
+      const target = new Date(d);
+      target.setFullYear(target.getFullYear() + yearsToAdd);
+      const day = String(target.getDate()).padStart(2, "0");
+      const month = String(target.getMonth() + 1).padStart(2, "0");
+      const year = target.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    // ==========================================
+    // CONTRACT PDF & TEXT SANITIZATION
+    // ==========================================
+
+    function cleanPdfText(text) {
+      if (text == null) return "";
+      let s = String(text);
+
+      // Specific lookalikes, symbols, and non-combining letters
+      const specificMap = {
+        "\u0BF9": "u", // Tamil Rupee sign (௹) commonly used as stylized u/ù
+        "–": "-",
+        "—": "-",
+        "―": "-",
+        "−": "-",
+        "“": '"',
+        "”": '"',
+        "„": '"',
+        "‘": "'",
+        "’": "'",
+        "‚": "'",
+        "…": "...",
+        "•": "\u2022",
+        "Ł": "L",
+        "ł": "l",
+        "Đ": "D",
+        "đ": "d",
+        "Ħ": "H",
+        "ħ": "h",
+        "ı": "i",
+        "İ": "I"
+      };
+
+      s = s.replace(/[\u0BF9\u2013\u2014\u2015\u2212\u201C\u201D\u201E\u2018\u2019\u201A\u2026\u2022ŁłĐđĦħıİ]/g, (m) => specificMap[m] || m);
+
+      // Try NFC first to retain Latin-1 precomposed accented characters (like à, è, é, ù, ü, ö, etc. in 0xA0 - 0xFF)
+      s = s.normalize("NFC");
+
+      // Allowed high characters in jsPDF WinAnsiEncoding:
+      const allowedWinAnsi = new Set([
+        338, 339, 352, 353, 376, 381, 382, 402, 710, 732,
+        8211, 8212, 8216, 8217, 8218, 8220, 8221, 8222, 8224, 8225, 8226, 8230, 8240, 8249, 8250, 8364, 8482
+      ]);
+
+      let result = "";
+      for (let i = 0; i < s.length; i++) {
+        const code = s.charCodeAt(i);
+        if (code <= 255 || allowedWinAnsi.has(code)) {
+          result += s[i];
+        } else {
+          // Decompose and strip diacritical marks
+          const decomposed = s[i].normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+          let fallback = "";
+          for (let j = 0; j < decomposed.length; j++) {
+            const dCode = decomposed.charCodeAt(j);
+            if (dCode <= 255 || allowedWinAnsi.has(dCode)) {
+              fallback += decomposed[j];
+            }
+          }
+          result += fallback || " ";
+        }
+      }
+
+      return result;
+    }
+
+    function getContractArtists(item) {
+      let list = [];
+      if (Array.isArray(item.artists) && item.artists.length > 0) {
+        list = item.artists.map((a, idx) => ({
+          index: idx + 1,
+          stageName: (a.artist_name || a.name || "").trim(),
+          legalName: (a.legal_name || "").trim()
+        })).filter((a) => a.stageName || a.legalName);
+      }
+      if (!list.length) {
+        const primary = (item.primary_artist || "").trim();
+        if (primary) {
+          const names = primary.split(",").map((n) => n.trim()).filter(Boolean);
+          list = names.map((n, idx) => ({
+            index: idx + 1,
+            stageName: n,
+            legalName: ""
+          }));
+        }
+      }
+      if (!list.length) {
+        list = [{
+          index: 1,
+          stageName: "Artist",
+          legalName: ""
+        }];
+      }
+      return list;
+    }
+
+    function calculateSplits(artists) {
+      const count = artists.length || 1;
+      const rawShare = 60 / count;
+      const formattedShare = Number.isInteger(rawShare) ? rawShare : +rawShare.toFixed(2);
+      return artists.map((a) => ({
+        ...a,
+        splitPercent: formattedShare
+      }));
+    }
+
+    function getDefaultContractData(item) {
+      const songTitle = (item.release_title || "Untitled").trim();
+      const effectiveBaseDate = item.accepted_at || item.created_at || new Date().toISOString();
+      const effectiveDate = effectiveBaseDate.split("T")[0];
+      const preferredReleaseDate = item.preferred_release_date || effectiveDate;
+
+      const baseArtists = getContractArtists(item);
+      const artistsWithSplits = calculateSplits(baseArtists);
+
+      const labels = [
+        {
+          labelName: "Sigma Label LLC",
+          managerName: "Daniel Malakhov",
+          splitPercent: 40
+        }
+      ];
+
+      const artists = artistsWithSplits.map((a) => ({
+        stageName: a.stageName,
+        legalName: a.legalName || "",
+        splitPercent: a.splitPercent
+      }));
+
+      return {
+        songTitle,
+        effectiveDate,
+        releaseDate: preferredReleaseDate,
+        labels,
+        artists
+      };
+    }
+
+    function normalizeContractData(raw, item) {
+      const defaults = getDefaultContractData(item);
+      if (!raw || typeof raw !== "object") return defaults;
+
+      const songTitle = (raw.songTitle || defaults.songTitle || "").trim();
+      const effectiveDate = raw.effectiveDate || defaults.effectiveDate;
+      const releaseDate = raw.releaseDate || defaults.releaseDate;
+
+      let labels = Array.isArray(raw.labels) && raw.labels.length > 0 ? raw.labels : defaults.labels;
+      labels = labels.map((l) => ({
+        labelName: (l.labelName || l.name || "Sigma Label LLC").trim(),
+        managerName: (l.managerName || l.manager || "").trim(),
+        splitPercent: typeof l.splitPercent === "number" ? l.splitPercent : (parseFloat(l.splitPercent) || 0)
+      })).filter((l) => l.labelName);
+
+      if (!labels.length) labels = defaults.labels;
+
+      let artists = Array.isArray(raw.artists) && raw.artists.length > 0 ? raw.artists : defaults.artists;
+      artists = artists.map((a) => ({
+        stageName: (a.stageName || a.artist_name || a.name || "").trim(),
+        legalName: (a.legalName || a.legal_name || "").trim(),
+        splitPercent: typeof a.splitPercent === "number" ? a.splitPercent : (parseFloat(a.splitPercent) || 0)
+      })).filter((a) => a.stageName || a.legalName);
+
+      if (!artists.length) artists = defaults.artists;
+
+      return {
+        songTitle,
+        effectiveDate,
+        releaseDate,
+        labels,
+        artists
+      };
+    }
+
+    function getEffectiveContractData(item) {
+      if (item.contract_data && typeof item.contract_data === "object") {
+        return normalizeContractData(item.contract_data, item);
+      }
+      if (item.board_position?.contract_data && typeof item.board_position.contract_data === "object") {
+        return normalizeContractData(item.board_position.contract_data, item);
+      }
+      return getDefaultContractData(item);
+    }
+
+    function renderContractBox(item) {
+      if (activeView !== "releases" && activeView !== "released") return "";
+      const contract = getEffectiveContractData(item);
+      const releaseTitle = contract.songTitle || item.release_title || "Untitled Release";
+
+      const labelParts = (contract.labels || []).map((l) => `${l.splitPercent}% ${escapeHtml(l.labelName)}`);
+      const artistParts = (contract.artists || []).map((a) => `${a.splitPercent}% ${escapeHtml(a.stageName)}`);
+      const allParts = [...labelParts, ...artistParts];
+      const splitSummary = allParts.length > 0 ? allParts.join(" · ") : "Ready";
+      const isCustomized = !!(item.contract_data || item.board_position?.contract_data);
+
+      return `
+        <div class="contract-box">
+          <div class="contract-info">
+            <div class="contract-icon-badge" title="${isCustomized ? "Customized contract settings saved" : "Contract file prepared"}">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </div>
+            <div class="contract-text-wrap">
+              <div class="contract-title">Distribution Agreement (PDF) ${isCustomized ? `<span class="contract-custom-badge">Edited</span>` : ""}</div>
+              <div class="contract-subtitle" title="${escapeHtml(splitSummary)}">${splitSummary}</div>
+            </div>
+          </div>
+          <div class="contract-actions">
+            <button class="contract-edit-btn" data-action="edit-contract" title="Edit contract splits, artists, legal names, and labels" type="button">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              <span>Edit</span>
+            </button>
+            <button class="contract-download-btn" data-action="download-contract" title="Download Ready Contract for &quot;${escapeHtml(releaseTitle)}&quot; in PDF format" type="button">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              <span>Download</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateReleaseContractPdf(item, customContractData) {
+      const jsPDFClass = window.jspdf?.jsPDF || window.jsPDF;
+      if (!jsPDFClass) {
+        throw new Error("PDF generation library is not loaded. Please ensure you have an active internet connection.");
+      }
+
+      const doc = new jsPDFClass({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4" // 595.28 x 841.89 pt
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 54;
+      const contentWidth = pageWidth - marginX * 2; // ~487.28 pt
+
+      const contract = customContractData ? normalizeContractData(customContractData, item) : getEffectiveContractData(item);
+
+      const songTitle = cleanPdfText((contract.songTitle || item.release_title || "Untitled").trim());
+      const effectiveBaseDate = contract.effectiveDate || item.accepted_at || item.created_at || new Date().toISOString();
+      const effectiveDateStr = formatDDMMYYYY(effectiveBaseDate);
+      const effectiveDatePlus3Str = addYearsToDate(effectiveBaseDate, 3);
+      const releaseDateStr = contract.releaseDate ? formatDDMMYYYY(contract.releaseDate) : effectiveDateStr;
+
+      const labels = contract.labels || [{ labelName: "Sigma Label LLC", managerName: "Daniel Malakhov", splitPercent: 40 }];
+      const artists = contract.artists || [{ stageName: "Artist", legalName: "", splitPercent: 60 }];
+
+      function printSection(title, bodyText, curY) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(15, 15, 15);
+        doc.text(cleanPdfText(title), marginX, curY);
+        curY += 14;
+
+        if (bodyText) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(9.5);
+          doc.setTextColor(30, 30, 30);
+          const lines = doc.splitTextToSize(cleanPdfText(bodyText), contentWidth);
+          doc.text(lines, marginX, curY);
+          curY += lines.length * 13 + 9;
+        } else {
+          curY += 6;
+        }
+        return curY;
+      }
+
+      // ==========================================
+      // PAGE 1
+      // ==========================================
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14.5);
+      doc.setTextColor(15, 15, 15);
+      doc.text("SIGMA LABEL LLC", pageWidth / 2, 60, { align: "center" });
+
+      doc.setFontSize(11);
+      doc.text("NON-EXCLUSIVE RECORDING, LICENSING & DISTRIBUTION", pageWidth / 2, 78, { align: "center" });
+      doc.text("AGREEMENT", pageWidth / 2, 92, { align: "center" });
+
+      let y = 126;
+
+      const labelNamesStr = labels.map((l) => cleanPdfText(l.labelName)).filter(Boolean).join(" and ") || "Sigma Label LLC";
+      y = printSection("1. Parties", `This Agreement is entered into between ${labelNamesStr} ('Label') and the Artist(s) identified in Schedule A.`, y);
+      y = printSection("2. Recording", `Song Title: ${songTitle}`, y);
+      y = printSection("3. Grant of Rights", "The Artist grants the Label a non-exclusive, worldwide license to distribute, market, monetize and administer the Recording during the Term. The Artist remains free to release music with other labels and distributors.", y);
+      y = printSection("4. Master Ownership", "The Artist retains ownership of the master recording unless otherwise agreed in Schedule A.", y);
+      y = printSection("5. Term", `Effective Date: ${effectiveDateStr}. Initial Term: 3 years (${effectiveDateStr} to ${effectiveDatePlus3Str}).`, y);
+      y = printSection("6. Territory", "Worldwide.", y);
+      y = printSection("7. Revenue Split", "Net Revenue shall be shared according to Schedule A.", y);
+      y = printSection("8. Royalty Reporting", "Statements: Monthly or Quarterly. Audit rights: One audit per calendar year upon reasonable notice.", y);
+      y = printSection("9. Marketing", "The Label may promote the Recording. The Artist agrees to reasonably cooperate with promotional activities.", y);
+      y = printSection("10. Delivery", null, y);
+
+      // ==========================================
+      // PAGE 2
+      // ==========================================
+      doc.addPage();
+      y = 58;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(30, 30, 30);
+      const delivLines = doc.splitTextToSize("24-bit WAV master, artwork (minimum 3000x3000), metadata and required clearances.", contentWidth);
+      doc.text(delivLines, marginX, y);
+      y += delivLines.length * 13 + 12;
+
+      y = printSection("11. Warranties", "The Artist warrants they control all rights necessary to license the Recording.", y);
+      y = printSection("12. Indemnification", "Each party is responsible for losses arising from its own breach of this Agreement.", y);
+      y = printSection("13. Confidentiality", "Commercial terms shall remain confidential except where disclosure is required by law.", y);
+      y = printSection("14. Force Majeure", "Neither party shall be liable for delays caused by events beyond reasonable control.", y);
+      y = printSection("15. Governing Law", "This Agreement shall be governed by and construed in accordance with the laws of the State of Israel.", y);
+      y = printSection("16. Dispute Resolution", "The parties shall first attempt to resolve disputes through good-faith negotiation.", y);
+
+      // 17. Schedule A
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(15, 15, 15);
+      doc.text("17. Schedule A", marginX, y);
+      y += 14;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(30, 30, 30);
+      doc.text(`Song: ${songTitle}`, marginX, y);
+      y += 13;
+      doc.text(`Release Date: ${releaseDateStr}`, marginX, y);
+      y += 15;
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Artists:", marginX, y);
+      y += 13;
+
+      doc.setFont("helvetica", "normal");
+      artists.forEach((art) => {
+        const stageName = cleanPdfText(art.stageName || "Artist");
+        const legalPart = art.legalName ? ` (Legal name: ${cleanPdfText(art.legalName)})` : "";
+        doc.text(`\u2022  ${stageName}${legalPart}`, marginX + 4, y);
+        y += 13;
+      });
+      y += 3;
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Revenue Splits:", marginX, y);
+      y += 13;
+
+      doc.setFont("helvetica", "normal");
+      labels.forEach((lbl) => {
+        const labelName = cleanPdfText(lbl.labelName || "Sigma Label LLC");
+        const mgrPart = lbl.managerName ? ` (Managed by ${cleanPdfText(lbl.managerName)})` : "";
+        doc.text(`\u2022  ${lbl.splitPercent}% ${labelName}${mgrPart}`, marginX + 4, y);
+        y += 13;
+      });
+
+      artists.forEach((art) => {
+        const stageName = cleanPdfText(art.stageName || "Artist");
+        doc.text(`\u2022  ${art.splitPercent}% ${stageName}`, marginX + 4, y);
+        y += 13;
+      });
+
+      // ==========================================
+      // PAGE 3+ (SIGNATURES)
+      // ==========================================
+      doc.addPage();
+      y = 60;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 15, 15);
+      doc.text("18. Signatures", marginX, y);
+      y += 26;
+
+      // Labels Signatures
+      labels.forEach((lbl) => {
+        if (y > pageHeight - 90) {
+          doc.addPage();
+          y = 60;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(15, 15, 15);
+        const headerTitle = labels.length > 1 ? `Label Representative (${cleanPdfText(lbl.labelName)})` : "Label Representative";
+        doc.text(headerTitle, marginX, y);
+        y += 14;
+
+        doc.setFont("helvetica", "normal");
+        const mgrPart = lbl.managerName ? ` (Managed by ${cleanPdfText(lbl.managerName)})` : "";
+        doc.text(`Name: ${cleanPdfText(lbl.labelName)}${mgrPart}`, marginX, y);
+        y += 26;
+
+        doc.text("Signature:  ______________________________________________________", marginX, y);
+        y += 38;
+      });
+
+      // Artists Signatures
+      artists.forEach((art, idx) => {
+        if (y > pageHeight - 90) {
+          doc.addPage();
+          y = 60;
+        }
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(15, 15, 15);
+        doc.text(`Artist ${idx + 1}`, marginX, y);
+        y += 14;
+
+        doc.setFont("helvetica", "normal");
+        const legalPart = art.legalName ? ` (${cleanPdfText(art.legalName)})` : "";
+        doc.text(`Name: ${cleanPdfText(art.stageName || "Artist")}${legalPart}`, marginX, y);
+        y += 26;
+
+        doc.text("Signature:  ______________________________________________________", marginX, y);
+        y += 38;
+      });
+
+      return doc;
+    }
+
+    function downloadReleaseContract(item, customContractData) {
+      try {
+        const contract = customContractData ? normalizeContractData(customContractData, item) : getEffectiveContractData(item);
+        const doc = generateReleaseContractPdf(item, contract);
+        const songTitle = (contract.songTitle || item.release_title || "Song").replace(/[^a-zA-Z0-9_\-]/g, "_").replace(/__+/g, "_");
+        const safeArtist = cleanPdfText(contract.artists?.[0]?.stageName || getPrimaryArtist(item) || "Artist").replace(/[^a-zA-Z0-9_\-]/g, "_").replace(/__+/g, "_") || "Artist";
+        const filename = `Contract - ${songTitle} (${safeArtist}) - Sigma Label LLC.pdf`;
+        doc.save(filename);
+        showCopyToast(`Downloaded contract for "${contract.songTitle || item.release_title || "song"}"`);
+      } catch (err) {
+        console.error("Contract generation error:", err);
+        alert("Failed to generate contract: " + err.message);
+      }
+    }
+
+    // ==========================================
+    // CONTRACT MODAL CONTROLLER
+    // ==========================================
+
+    function openContractModal(item) {
+      activeContractItem = item;
+      const contract = getEffectiveContractData(item);
+
+      contractSongTitle.value = contract.songTitle || item.release_title || "";
+      contractEffectiveDate.value = contract.effectiveDate || "";
+      contractReleaseDate.value = contract.releaseDate || "";
+
+      contractModalSub.textContent = `Configure labels, artists, and revenue splits for "${contract.songTitle || item.release_title || "this release"}".`;
+
+      renderContractLabelsList(contract.labels);
+      renderContractArtistsList(contract.artists);
+      updateSplitTotals();
+
+      contractModal.classList.remove("hidden");
+    }
+
+    function closeContractModal() {
+      contractModal.classList.add("hidden");
+      activeContractItem = null;
+    }
+
+    function renderContractLabelsList(labels) {
+      contractLabelsContainer.innerHTML = "";
+      labels.forEach((lbl, idx) => {
+        const block = document.createElement("div");
+        block.className = "create-artist-block";
+        block.dataset.labelBlock = "true";
+        block.innerHTML = `
+          <div class="create-artist-head">
+            <span class="create-artist-index">Label / Entity ${idx + 1}</span>
+            ${labels.length > 1 ? `<button class="create-remove-artist" type="button" title="Remove this label" data-action="remove-label">&times;</button>` : ""}
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Entity / Label Name *</label>
+              <input type="text" data-label-name value="${escapeHtml(lbl.labelName || "")}" placeholder="e.g. Sigma Label LLC" required />
+            </div>
+            <div class="field">
+              <label>Manager / Representative</label>
+              <input type="text" data-label-manager value="${escapeHtml(lbl.managerName || "")}" placeholder="e.g. Daniel Malakhov" />
+            </div>
+            <div class="field wide">
+              <label>Revenue Split (%) *</label>
+              <input type="number" min="0" max="100" step="0.01" data-label-split value="${lbl.splitPercent != null ? lbl.splitPercent : 0}" required />
+            </div>
+          </div>
+        `;
+
+        block.querySelector("[data-action='remove-label']")?.addEventListener("click", () => {
+          block.remove();
+          renumberContractLabels();
+          updateSplitTotals();
+        });
+
+        block.querySelector("[data-label-split]")?.addEventListener("input", updateSplitTotals);
+        contractLabelsContainer.appendChild(block);
+      });
+    }
+
+    function renumberContractLabels() {
+      const blocks = contractLabelsContainer.querySelectorAll("[data-label-block]");
+      blocks.forEach((b, idx) => {
+        const titleEl = b.querySelector(".create-artist-index");
+        if (titleEl) titleEl.textContent = `Label / Entity ${idx + 1}`;
+        const removeBtn = b.querySelector("[data-action='remove-label']");
+        if (blocks.length === 1 && removeBtn) {
+          removeBtn.remove();
+        }
+      });
+    }
+
+    function renderContractArtistsList(artists) {
+      contractArtistsContainer.innerHTML = "";
+      artists.forEach((art, idx) => {
+        const block = document.createElement("div");
+        block.className = "create-artist-block";
+        block.dataset.artistBlock = "true";
+        block.innerHTML = `
+          <div class="create-artist-head">
+            <span class="create-artist-index">Artist ${idx + 1}</span>
+            <button class="create-remove-artist" type="button" title="Remove artist from contract splits and signatures" data-action="remove-artist">&times;</button>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Stage / Artist Name *</label>
+              <input type="text" data-artist-stage value="${escapeHtml(art.stageName || "")}" placeholder="e.g. YùRU" required />
+            </div>
+            <div class="field">
+              <label>Legal Name (Full Name)</label>
+              <input type="text" data-artist-legal value="${escapeHtml(art.legalName || "")}" placeholder="e.g. Safouane Tayebi" />
+            </div>
+            <div class="field wide">
+              <label>Revenue Split (%) *</label>
+              <input type="number" min="0" max="100" step="0.01" data-artist-split value="${art.splitPercent != null ? art.splitPercent : 0}" required />
+            </div>
+          </div>
+        `;
+
+        block.querySelector("[data-action='remove-artist']")?.addEventListener("click", () => {
+          block.remove();
+          renumberContractArtists();
+          updateSplitTotals();
+        });
+
+        block.querySelector("[data-artist-split]")?.addEventListener("input", updateSplitTotals);
+        contractArtistsContainer.appendChild(block);
+      });
+    }
+
+    function renumberContractArtists() {
+      const blocks = contractArtistsContainer.querySelectorAll("[data-artist-block]");
+      blocks.forEach((b, idx) => {
+        const titleEl = b.querySelector(".create-artist-index");
+        if (titleEl) titleEl.textContent = `Artist ${idx + 1}`;
+      });
+    }
+
+    function collectContractLabelsFromForm() {
+      const blocks = Array.from(contractLabelsContainer.querySelectorAll("[data-label-block]"));
+      return blocks.map((b) => {
+        const name = (b.querySelector("[data-label-name]")?.value || "").trim();
+        const manager = (b.querySelector("[data-label-manager]")?.value || "").trim();
+        const splitVal = parseFloat(b.querySelector("[data-label-split]")?.value);
+        return {
+          labelName: name || "Sigma Label LLC",
+          managerName: manager,
+          splitPercent: isNaN(splitVal) ? 0 : splitVal
+        };
+      });
+    }
+
+    function collectContractArtistsFromForm() {
+      const blocks = Array.from(contractArtistsContainer.querySelectorAll("[data-artist-block]"));
+      return blocks.map((b) => {
+        const stage = (b.querySelector("[data-artist-stage]")?.value || "").trim();
+        const legal = (b.querySelector("[data-artist-legal]")?.value || "").trim();
+        const splitVal = parseFloat(b.querySelector("[data-artist-split]")?.value);
+        return {
+          stageName: stage || "Artist",
+          legalName: legal,
+          splitPercent: isNaN(splitVal) ? 0 : splitVal
+        };
+      });
+    }
+
+    function updateSplitTotals() {
+      const labels = collectContractLabelsFromForm();
+      const artists = collectContractArtistsFromForm();
+
+      const labelSum = +labels.reduce((acc, l) => acc + (parseFloat(l.splitPercent) || 0), 0).toFixed(2);
+      const artistSum = +artists.reduce((acc, a) => acc + (parseFloat(a.splitPercent) || 0), 0).toFixed(2);
+      const grandTotal = +(labelSum + artistSum).toFixed(2);
+
+      contractSplitBreakdown.textContent = `Labels: ${labelSum}% (${labels.length}) | Artists: ${artistSum}% (${artists.length})`;
+
+      if (Math.abs(grandTotal - 100) < 0.05) {
+        contractTotalPill.className = "contract-split-total-pill split-valid";
+        contractTotalPill.textContent = "100% Allocated";
+      } else {
+        contractTotalPill.className = "contract-split-total-pill split-warning";
+        contractTotalPill.textContent = `${grandTotal}% (Unbalanced)`;
+      }
+
+      return { labelSum, artistSum, grandTotal };
+    }
+
+    function autoSplitRemainingForArtists() {
+      const labels = collectContractLabelsFromForm();
+      const labelSum = +labels.reduce((acc, l) => acc + (parseFloat(l.splitPercent) || 0), 0).toFixed(2);
+      const remaining = Math.max(0, +(100 - labelSum).toFixed(2));
+
+      const artistBlocks = Array.from(contractArtistsContainer.querySelectorAll("[data-artist-block]"));
+      if (!artistBlocks.length) {
+        alert("Please add at least one artist before calculating splits.");
+        return;
+      }
+
+      const rawShare = remaining / artistBlocks.length;
+      const formattedShare = Number.isInteger(rawShare) ? rawShare : +rawShare.toFixed(2);
+
+      artistBlocks.forEach((b, idx) => {
+        const input = b.querySelector("[data-artist-split]");
+        if (input) {
+          // If rounding leaves a remainder on the last artist, assign it so it sums precisely to remaining
+          if (idx === artistBlocks.length - 1) {
+            const previousTotal = formattedShare * (artistBlocks.length - 1);
+            const lastShare = +(remaining - previousTotal).toFixed(2);
+            input.value = lastShare;
+          } else {
+            input.value = formattedShare;
+          }
+        }
+      });
+
+      updateSplitTotals();
+      showCopyToast(`Auto-split remaining ${remaining}% among ${artistBlocks.length} artist(s)`);
+    }
+
+    function resetContractModalToDefault() {
+      if (!activeContractItem) return;
+      const defaults = getDefaultContractData(activeContractItem);
+      contractSongTitle.value = defaults.songTitle;
+      contractEffectiveDate.value = defaults.effectiveDate;
+      contractReleaseDate.value = defaults.releaseDate;
+      renderContractLabelsList(defaults.labels);
+      renderContractArtistsList(defaults.artists);
+      updateSplitTotals();
+      showCopyToast("Reset to default contract split template");
+    }
+
+    async function saveContractSettings(andDownload = false) {
+      if (!activeContractItem) return;
+
+      const labels = collectContractLabelsFromForm();
+      const artists = collectContractArtistsFromForm();
+
+      if (!labels.length) {
+        alert("At least one label or entity is required.");
+        return;
+      }
+
+      if (!artists.length) {
+        alert("At least one artist is required for the contract.");
+        return;
+      }
+
+      const contractData = {
+        songTitle: contractSongTitle.value.trim() || activeContractItem.release_title || "Untitled",
+        effectiveDate: contractEffectiveDate.value || null,
+        releaseDate: contractReleaseDate.value || null,
+        labels,
+        artists
+      };
+
+      const originalBtnText = saveContractBtn.textContent;
+      saveContractBtn.disabled = true;
+      saveContractBtn.textContent = "Saving...";
+
+      try {
+        // Attempt update directly into contract_data
+        let { error } = await client
+          .from("submissions")
+          .update({ contract_data: contractData })
+          .eq("id", activeContractItem.id);
+
+        if (error && (error.code === "PGRST204" || (error.message && error.message.includes("contract_data")))) {
+          // Fallback: save inside board_position if contract_data column is not yet present
+          console.warn("contract_data column not found in schema cache, using board_position fallback:", error);
+          const currentPos = activeContractItem.board_position && typeof activeContractItem.board_position === "object" ? activeContractItem.board_position : {};
+          const nextPos = { ...currentPos, contract_data: contractData };
+          const fbRes = await client
+            .from("submissions")
+            .update({ board_position: nextPos })
+            .eq("id", activeContractItem.id);
+          error = fbRes.error;
+          if (!error) {
+            activeContractItem.board_position = nextPos;
+          }
+        } else if (!error) {
+          activeContractItem.contract_data = contractData;
+        }
+
+        if (error) {
+          alert("Error saving contract settings: " + error.message);
+          return;
+        }
+
+        // Also sync artist stage names and legal names back to the submission record if present
+        if (Array.isArray(activeContractItem.artists) && activeContractItem.artists.length > 0) {
+          const updatedSubmissionArtists = activeContractItem.artists.map((origArt, idx) => {
+            const matched = artists[idx] || artists.find((a) => a.stageName.toLowerCase() === (origArt.artist_name || origArt.name || "").toLowerCase());
+            if (matched) {
+              return {
+                ...origArt,
+                artist_name: matched.stageName,
+                legal_name: matched.legalName
+              };
+            }
+            return origArt;
+          });
+          activeContractItem.artists = updatedSubmissionArtists;
+          const { error: syncArtError } = await client
+            .from("submissions")
+            .update({ artists: updatedSubmissionArtists })
+            .eq("id", activeContractItem.id);
+          if (syncArtError) console.warn("Artist sync error:", syncArtError);
+        }
+
+        // Update in allItems array
+        const found = allItems.find((it) => it.id === activeContractItem.id);
+        if (found) {
+          found.contract_data = contractData;
+          found.board_position = activeContractItem.board_position;
+          found.artists = activeContractItem.artists;
+        }
+
+        renderBoard(allItems);
+        showCopyToast("Contract settings saved to database");
+
+        if (andDownload) {
+          downloadReleaseContract(activeContractItem, contractData);
+        }
+
+        closeContractModal();
+      } catch (err) {
+        console.error("Save contract error:", err);
+        alert("Failed to save contract settings: " + err.message);
+      } finally {
+        saveContractBtn.disabled = false;
+        saveContractBtn.textContent = originalBtnText;
+      }
+    }
+
+    // Modal button event listeners
+    addContractLabelBtn?.addEventListener("click", () => {
+      const currentLabels = collectContractLabelsFromForm();
+      currentLabels.push({
+        labelName: "Partner Label LLC",
+        managerName: "",
+        splitPercent: 0
+      });
+      renderContractLabelsList(currentLabels);
+      renumberContractLabels();
+      updateSplitTotals();
+    });
+
+    addContractArtistBtn?.addEventListener("click", () => {
+      const currentArtists = collectContractArtistsFromForm();
+      currentArtists.push({
+        stageName: "New Artist",
+        legalName: "",
+        splitPercent: 0
+      });
+      renderContractArtistsList(currentArtists);
+      renumberContractArtists();
+      updateSplitTotals();
+    });
+
+    autoSplitBtn?.addEventListener("click", autoSplitRemainingForArtists);
+    resetContractBtn?.addEventListener("click", resetContractModalToDefault);
+    saveContractBtn?.addEventListener("click", () => saveContractSettings(false));
+    saveAndDownloadContractBtn?.addEventListener("click", () => saveContractSettings(true));
+    closeContractModalBtn?.addEventListener("click", closeContractModal);
+    contractModal?.addEventListener("click", (event) => {
+      if (event.target === contractModal) closeContractModal();
+    });
+
+    async function restoreSubmission(item) {
+      const { error } = await client.from("submissions").update({ status: "pending", rejected_at: null }).eq("id", item.id);
+      if (error) alert(error.message);
+      await loadBoard();
+    }
+
+    async function permanentlyDeleteSubmission(item) {
+      showConfirm(
+        "Delete permanently?",
+        `This will permanently remove ${item.release_title || "this submission"} from Trash and delete it from the database. This cannot be undone.`,
+        "Delete Forever",
+        async () => {
+          const { error } = await client.from("submissions").delete().eq("id", item.id).eq("status", "rejected");
+          if (error) { alert(error.message); return; }
+          await loadBoard();
+        }
+      );
+    }
+
+    async function saveCover(note, item) {
+      const urlInput = note.querySelector("[data-cover-url]");
+      const fileInput = note.querySelector("[data-cover-file]");
+      let coverUrl = urlInput.value.trim();
+      const file = fileInput.files?.[0];
+      if (file) {
+        const safeName = file.name.replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
+        const path = `${item.id}/${Date.now()}-${safeName}`;
+        const { error: uploadError } = await client.storage.from("release-covers").upload(path, file, { upsert: true });
+        if (uploadError) { alert(`Upload failed: ${uploadError.message}. Paste a cover URL instead if the file is too large.`); return; }
+        const { data } = client.storage.from("release-covers").getPublicUrl(path);
+        coverUrl = data.publicUrl;
+      }
+      const { error } = await client.from("submissions").update({ cover_art_url: coverUrl || null }).eq("id", item.id);
+      if (error) alert(error.message);
+      await loadBoard();
+    }
+
+    let draggedItemId = null;
+
+    function enableDrag(note, item) {
+      const handle = note.querySelector(".drag-handle");
+      if (!handle) return;
+
+      handle.addEventListener("mousedown", () => {
+        note.setAttribute("draggable", "true");
+      });
+      handle.addEventListener("mouseup", () => {
+        note.setAttribute("draggable", "false");
+      });
+      handle.addEventListener("mouseleave", () => {
+        if (!draggedItemId) note.setAttribute("draggable", "false");
+      });
+
+      note.addEventListener("dragstart", (e) => {
+        draggedItemId = item.id;
+        note.classList.add("dragging");
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", item.id);
+      });
+
+      note.addEventListener("dragend", () => {
+        draggedItemId = null;
+        note.classList.remove("dragging");
+        note.setAttribute("draggable", "false");
+        document.querySelectorAll(".note.drag-target").forEach((el) => el.classList.remove("drag-target"));
+      });
+
+      note.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (draggedItemId && draggedItemId !== item.id) {
+          note.classList.add("drag-target");
+        }
+      });
+
+      note.addEventListener("dragleave", (e) => {
+        if (!note.contains(e.relatedTarget)) {
+          note.classList.remove("drag-target");
+        }
+      });
+
+      note.addEventListener("drop", async (e) => {
+        e.preventDefault();
+        note.classList.remove("drag-target");
+        const sourceId = e.dataTransfer.getData("text/plain") || draggedItemId;
+        if (!sourceId || sourceId === item.id) return;
+        await handleItemReorder(sourceId, item.id);
+      });
+
+      // Pointer events for touchscreen devices
+      handle.addEventListener("pointerdown", (e) => {
+        if (e.pointerType === "mouse") return;
+        const startX = e.clientX;
+        const startY = e.clientY;
+        let moved = false;
+
+        const onPointerMove = (moveEvent) => {
+          const dx = Math.abs(moveEvent.clientX - startX);
+          const dy = Math.abs(moveEvent.clientY - startY);
+          if (!moved && (dx > 10 || dy > 10)) {
+            moved = true;
+            note.classList.add("dragging");
+            draggedItemId = item.id;
+          }
+          if (moved) {
+            moveEvent.preventDefault();
+            const elUnder = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+            const targetNote = elUnder?.closest(".note");
+            document.querySelectorAll(".note.drag-target").forEach((n) => {
+              if (n !== targetNote) n.classList.remove("drag-target");
+            });
+            if (targetNote && targetNote !== note) {
+              targetNote.classList.add("drag-target");
+            }
+          }
+        };
+
+        const onPointerUp = async () => {
+          window.removeEventListener("pointermove", onPointerMove);
+          window.removeEventListener("pointerup", onPointerUp);
+          window.removeEventListener("pointercancel", onPointerUp);
+          note.classList.remove("dragging");
+          const targetNote = document.querySelector(".note.drag-target");
+          if (targetNote) {
+            targetNote.classList.remove("drag-target");
+            const targetId = targetNote.dataset.id;
+            if (targetId && targetId !== item.id) {
+              await handleItemReorder(item.id, targetId);
+            }
+          }
+          draggedItemId = null;
+        };
+
+        window.addEventListener("pointermove", onPointerMove, { passive: false });
+        window.addEventListener("pointerup", onPointerUp);
+        window.addEventListener("pointercancel", onPointerUp);
+      });
+    }
+
+    function makeInitials(value) {
+      const source = String(value || 'A').split('@')[0].replace(/[^a-zA-Z0-9]+/g, ' ').trim();
+      const parts = source.split(/\s+/).filter(Boolean);
+      const initials = (parts[0]?.[0] || 'A') + (parts[1]?.[0] || parts[0]?.[1] || '');
+      return initials.toUpperCase();
+    }
+
+    function formatChatTimestamp(dateString) {
+      const date = new Date(dateString);
+      return Number.isNaN(date.getTime()) ? '' : date.toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    }
+
+    function closeChat() {
+      if (chatRefreshTimer) {
+        clearInterval(chatRefreshTimer);
+        chatRefreshTimer = null;
+      }
+      chatModal.classList.add("hidden");
+    }
+
+    async function openChat(item) {
+      currentChatSubmission = item;
+      chatTitle.textContent = item.release_title || "Untitled release";
+      chatSubtitle.textContent = `${activeView === "submissions" ? "Submission" : activeView === "ar_submissions" ? "A&R Submission" : activeView === "amethyst" ? "Amethyst Submission" : activeView === "releases" ? "Release" : "Discussion"} · ${getPrimaryArtist(item)} · Private Sigma admin chat`;
+      chatInput.value = "";
+      setStatus(chatStatus, "");
+      chatMessageCache = [];
+      chatModal.classList.remove("hidden");
+      await cleanupOldMessages();
+      await loadMessages(false);
+      if (chatRefreshTimer) clearInterval(chatRefreshTimer);
+      chatRefreshTimer = setInterval(() => {
+        if (!chatModal.classList.contains("hidden")) loadMessages(true);
+      }, 3000);
+      chatInput.focus();
+    }
+
+    closeChatBtn.addEventListener("click", closeChat);
+    chatModal.addEventListener("click", (event) => { if (event.target === chatModal) closeChat(); });
+
+    function renderMessages(scrollToBottom = true) {
+      if (!chatMessageCache.length) {
+        messages.innerHTML = `<div class="message-empty">No messages yet. Start the conversation with the admin team here. Messages older than 24 hours are cleaned automatically.</div>`;
+        return;
+      }
+      messages.innerHTML = chatMessageCache.map((message) => {
+        const own = currentUser?.email && String(message.admin_email || '').toLowerCase() === String(currentUser.email).toLowerCase();
+        return `<div class="chat-message ${own ? 'own' : ''}">
+          <div class="message-avatar">${escapeHtml(makeInitials(message.admin_email || 'A'))}</div>
+          <div class="message-content">
+            <div class="message-meta">
+              <span class="message-author">${escapeHtml((message.admin_email || 'Admin').split('@')[0])}</span>
+              <span class="message-time">${escapeHtml(formatChatTimestamp(message.created_at))}</span>
+            </div>
+            <div class="message-text">${escapeHtml(message.message || '')}</div>
+          </div>
+        </div>`;
+      }).join("");
+      if (scrollToBottom) messages.scrollTop = messages.scrollHeight;
+    }
+
+    async function loadMessages(silent = false) {
+      if (!currentChatSubmission) return;
+      if (!silent && !chatMessageCache.length) messages.innerHTML = `<div class="message-loading">Loading messages...</div>`;
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data, error } = await client.from("release_messages").select("*").eq("submission_id", currentChatSubmission.id).gte("created_at", since).order("created_at", { ascending: true });
+      if (error) {
+        if (!silent) messages.innerHTML = `<div class="message-empty">${escapeHtml(error.message)}</div>`;
+        return;
+      }
+      chatMessageCache = data || [];
+      renderMessages(!silent);
+    }
+
+    async function sendCurrentMessage() {
+      if (!currentChatSubmission) return;
+      const text = chatInput.value.trim();
+      if (!text) return;
+      setStatus(chatStatus, "Sending...");
+      const nowIso = new Date().toISOString();
+      const { error } = await client.from("release_messages").insert({ submission_id: currentChatSubmission.id, admin_user_id: currentUser.id, admin_email: currentUser.email, message: text });
+      if (error) { setStatus(chatStatus, error.message, "error"); return; }
+      chatInput.value = "";
+      chatMessageCache.push({ submission_id: currentChatSubmission.id, admin_user_id: currentUser.id, admin_email: currentUser.email, message: text, created_at: nowIso });
+      renderMessages(true);
+      setStatus(chatStatus, "Sent.", "success");
+      chatInput.focus();
+      setTimeout(() => { if (!chatModal.classList.contains("hidden")) loadMessages(true); }, 450);
+    }
+
+    sendMessageBtn.addEventListener("click", sendCurrentMessage);
+    chatInput.addEventListener("keydown", async (event) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        await sendCurrentMessage();
+      }
+    });
+
+    client.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+        queueSessionInit(session);
+        return;
+      }
+      if (event === "SIGNED_OUT") {
+        activeAccessToken = null;
+        showLogin();
+      }
+    });
+
+    setTimeout(() => {
+      if (sessionBootstrapDone) return;
+      withTimeout(client.auth.getSession(), 12000, "Session check timed out.")
+        .then(({ data, error }) => {
+          if (sessionBootstrapDone) return;
+          if (error) {
+            setStatus(loginStatus, error.message, "error");
+            showLogin();
+            return;
+          }
+          queueSessionInit(data.session);
+        })
+        .catch((error) => {
+          if (sessionBootstrapDone) return;
+          setStatus(loginStatus, error.message || "Could not start the admin board.", "error");
+          showLogin();
+        });
+    }, 0);
+  </script>
+</body>
+</html>

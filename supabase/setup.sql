@@ -192,12 +192,17 @@ create table if not exists public.submissions (
   cover_art_url text,
   accepted_at timestamptz,
   rejected_at timestamptz,
-  released_at timestamptz
+  released_at timestamptz,
+  contract_data jsonb,
+  submission_type text not null default 'artist',
+  ar_data jsonb
 );
 
 create index if not exists submissions_status_idx on public.submissions(status);
 create index if not exists submissions_release_date_idx on public.submissions(preferred_release_date);
 create index if not exists submissions_rejected_at_idx on public.submissions(rejected_at);
+create index if not exists submissions_submission_type_idx on public.submissions(submission_type);
+create index if not exists submissions_status_type_idx on public.submissions(status, submission_type);
 
 create table if not exists public.release_messages (
   id uuid primary key default gen_random_uuid(),

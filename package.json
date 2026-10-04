@@ -1,0 +1,10 @@
+{
+  "name": "sigma-label-llc-website",
+  "version": "1.0.0",
+  "description": "Sigma Label LLC Website with Spotify & Apple Music Artist Search",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
